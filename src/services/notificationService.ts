@@ -1,11 +1,13 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { DAILY_VERSES } from '../data/churchData';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -37,8 +39,23 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
     return undefined;
   }
 
-  const token = await Notifications.getExpoPushTokenAsync();
-  return token.data;
+  // O token Expo só é necessário para push remoto (enviado por um servidor).
+  // As notificações locais deste app funcionam sem ele, então a ausência de
+  // projectId não é um erro: apenas não há token a devolver.
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+
+  if (!projectId) {
+    return undefined;
+  }
+
+  try {
+    const token = await Notifications.getExpoPushTokenAsync({ projectId });
+    return token.data;
+  } catch (error) {
+    console.warn('Não foi possível obter o token de push:', error);
+    return undefined;
+  }
 }
 
 export async function scheduleDailyVerseNotification(): Promise<void> {

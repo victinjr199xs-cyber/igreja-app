@@ -10,7 +10,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import { SERMONS, Sermon } from '../data/churchData';
@@ -21,9 +21,19 @@ export default function SermonsScreen() {
   const [selectedSermon, setSelectedSermon] = useState<Sermon | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
+  // A fonte muda quando outra pregação é selecionada; o setup inicia a reprodução.
+  const player = useVideoPlayer(selectedSermon?.videoUrl ?? null, (p) => {
+    p.play();
+  });
+
   const playSermon = (sermon: Sermon) => {
     setSelectedSermon(sermon);
     setModalVisible(true);
+  };
+
+  const closePlayer = () => {
+    player.pause();
+    setModalVisible(false);
   };
 
   const renderSermon = ({ item }: { item: Sermon }) => (
@@ -97,13 +107,13 @@ export default function SermonsScreen() {
         visible={modalVisible}
         animationType="slide"
         presentationStyle="fullScreen"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={closePlayer}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
+              onPress={closePlayer}
             >
               <Ionicons name="close" size={28} color={COLORS.white} />
             </TouchableOpacity>
@@ -114,12 +124,11 @@ export default function SermonsScreen() {
 
           {selectedSermon && (
             <>
-              <Video
-                source={{ uri: selectedSermon.videoUrl }}
+              <VideoView
+                player={player}
                 style={styles.video}
-                useNativeControls
-                resizeMode={ResizeMode.CONTAIN}
-                shouldPlay
+                nativeControls
+                contentFit="contain"
               />
               <View style={styles.modalInfo}>
                 <Text style={styles.modalSermonTitle}>{selectedSermon.title}</Text>

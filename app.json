@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1a237e"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.igreja.app",
@@ -40,8 +35,19 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#1a237e",
-          "sounds": ["./assets/notification.wav"]
+          "color": "#1a237e"
+        }
+      ],
+      "expo-audio",
+      "expo-video",
+      "expo-font",
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1a237e"
         }
       ]
     ]

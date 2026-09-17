@@ -7,13 +7,10 @@ import {
   StatusBar,
   SafeAreaView,
   Animated,
-  Dimensions,
 } from 'react-native';
-import { Audio, AVPlaybackStatus } from 'expo-av';
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
-
-const { width } = Dimensions.get('window');
 
 const RADIO_STATIONS = [
   {
@@ -51,18 +48,17 @@ const PLAYLIST = [
 ];
 
 export default function RadioScreen() {
-  const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(PLAYLIST[0]);
   const [selectedStation, setSelectedStation] = useState(RADIO_STATIONS[0]);
-  const soundRef = useRef<Audio.Sound | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // O player é recriado (e o anterior liberado) sempre que a estação muda.
+  const player = useAudioPlayer(selectedStation.url);
+  const status = useAudioPlayerStatus(player);
+  const isPlaying = status.playing;
+
   useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-    };
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -86,33 +82,17 @@ export default function RadioScreen() {
     }
   }, [isPlaying]);
 
-  const togglePlayback = async () => {
+  const togglePlayback = () => {
     if (isPlaying) {
-      if (soundRef.current) {
-        await soundRef.current.pauseAsync();
-      }
-      setIsPlaying(false);
+      player.pause();
     } else {
-      try {
-        if (soundRef.current) {
-          await soundRef.current.playAsync();
-        } else {
-          const { sound } = await Audio.Sound.createAsync(
-            { uri: selectedStation.url },
-            { shouldPlay: true }
-          );
-          soundRef.current = sound;
-        }
-        setIsPlaying(true);
-      } catch (error) {
-        setIsPlaying(!isPlaying);
-      }
+      player.play();
     }
   };
 
   const playTrack = (track: typeof PLAYLIST[0]) => {
     setCurrentTrack(track);
-    setIsPlaying(true);
+    player.play();
   };
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -19,12 +19,9 @@ export default function BibleScreen() {
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showBookList, setShowBookList] = useState(true);
-  const [dailyVerse, setDailyVerse] = useState<BibleVerse>(DAILY_VERSES[0]);
-
-  useEffect(() => {
-    const today = new Date().getDay();
-    setDailyVerse(DAILY_VERSES[today % DAILY_VERSES.length]);
-  }, []);
+  const [dailyVerse] = useState<BibleVerse>(
+    () => DAILY_VERSES[new Date().getDay() % DAILY_VERSES.length]
+  );
 
   const filteredBooks = BIBLE_BOOKS.filter((book) =>
     book.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -112,7 +109,12 @@ export default function BibleScreen() {
           placeholder="Buscar livro..."
           placeholderTextColor={COLORS.gray}
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={(text) => {
+            setSearchQuery(text);
+            if (text.length > 0) {
+              setShowBookList(true);
+            }
+          }}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>

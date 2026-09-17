@@ -30,6 +30,7 @@ export const SIZES = {
   font: 14,
   medium: 16,
   large: 18,
+  xl: 20,
   extraLarge: 24,
   xxl: 32,
   padding: 16,
