@@ -50,7 +50,11 @@ src/
   services/
     notificationService      permissões, canal Android e agendamento diário
   constants/theme            COLORS, SIZES, FONTS
-  data/churchData            eventos, pregações, versículos e livros da Bíblia
+  data/churchData            eventos, pregações e versículos do dia
+  data/bible/
+    books.ts                 índice gerado: 66 livros + carga sob demanda
+    blivre/                  um JSON por livro (Bíblia Livre)
+scripts/build-bible.mjs      gera books.ts e os JSONs por livro
 ```
 
 ## Mídia
@@ -63,6 +67,45 @@ O player de áudio é recriado a cada troca de estação — o hook libera o ant
 sozinho, então não há `unload` manual. O player de vídeo vive no nível do
 componente, e não dentro do `<Modal>`, por isso a tela pausa explicitamente ao
 fechar.
+
+## Bíblia
+
+O texto completo está embutido no app e funciona offline: 66 livros, 1.189
+capítulos e 31.102 versículos.
+
+A tradução é a **Bíblia Livre**, que está em **domínio público** — pode ser
+redistribuída sem licença. Os dados vêm de
+[damarals/biblias](https://github.com/damarals/biblias) (MIT).
+
+> As traduções mais conhecidas nas igrejas — ARA, ARC, ACF, NVI, NTLH — são
+> protegidas por direito autoral. A Sociedade Bíblica do Brasil libera até 500
+> versículos sem autorização formal, e a Trinitariana até 1.100. A Bíblia
+> completa tem 31.102, então embuti-las exigiria licença por escrito do
+> detentor.
+
+### Como os dados são organizados
+
+Um arquivo único de ~3,8 MB faria o Metro avaliar a Bíblia inteira na
+inicialização. Em vez disso, cada livro é um módulo próprio em
+`src/data/bible/blivre/`, carregado por `loadBookChapters(slug)` apenas quando
+alguém o abre. O maior é Salmos, com 224 KB.
+
+O slug vem do **nome** do livro, não da sigla: "Jó" e "Jo" (João) reduziriam ao
+mesmo identificador e um sobrescreveria o arquivo do outro. O script trava se
+detectar colisão.
+
+### Regenerar ou trocar de tradução
+
+```bash
+curl -LO https://github.com/damarals/biblias/releases/download/v1.0.0/BLIVRE.json
+node scripts/build-bible.mjs BLIVRE.json blivre
+```
+
+O segundo argumento nomeia a pasta de saída. Para adicionar outra tradução —
+se você obtiver licença da ARA, por exemplo — rode o script com a sigla dela e
+os arquivos convivem lado a lado, sem mexer nas telas.
+
+`src/data/bible/books.ts` é **gerado**: não edite à mão.
 
 ## Notificações
 
@@ -96,8 +139,10 @@ hoje:
   abre, mas não carrega.
 
 A playlist exibida na tela de Rádio é decorativa: as faixas não têm URL própria,
-e tocá-las inicia a estação selecionada. A tela da Bíblia lista livros e
-capítulos, mas ainda não exibe o texto dos versículos.
+e tocá-las inicia a estação selecionada.
+
+O texto bíblico **não** é dado de demonstração: é a Bíblia Livre completa, e
+está pronta para uso.
 
 ## Licença
 
