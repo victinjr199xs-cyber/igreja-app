@@ -9,17 +9,6 @@ export interface ChurchEvent {
   type: 'culto' | 'estudo' | 'reuniao' | 'evento';
 }
 
-export interface Sermon {
-  id: string;
-  title: string;
-  preacher: string;
-  date: string;
-  duration: string;
-  thumbnail: string;
-  videoUrl: string;
-  description: string;
-}
-
 export interface BibleVerse {
   reference: string;
   text: string;
@@ -88,69 +77,6 @@ export const WEEKLY_EVENTS: ChurchEvent[] = [
     endTime: '09:30',
     location: 'Salas de Aula',
     type: 'estudo',
-  },
-];
-
-export const SERMONS: Sermon[] = [
-  {
-    id: '1',
-    title: 'A Graça Transformadora',
-    preacher: 'Pr. João Silva',
-    date: '14/09/2026',
-    duration: '45:30',
-    thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=400',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    description: 'Uma mensagem poderosa sobre como a graça de Deus transforma vidas.',
-  },
-  {
-    id: '2',
-    title: 'Fé Inabalável',
-    preacher: 'Pr. Marcos Santos',
-    date: '07/09/2026',
-    duration: '38:15',
-    thumbnail: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    description: 'Como manter a fé em tempos difíceis.',
-  },
-  {
-    id: '3',
-    title: 'O Poder da Oração',
-    preacher: 'Pr. João Silva',
-    date: '31/08/2026',
-    duration: '42:00',
-    thumbnail: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=400',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    description: 'Descubra o poder da oração na vida do cristão.',
-  },
-  {
-    id: '4',
-    title: 'Amor ao Próximo',
-    preacher: 'Pr. Marcos Santos',
-    date: '24/08/2026',
-    duration: '36:45',
-    thumbnail: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    description: 'O mandamento do amor na prática diária.',
-  },
-  {
-    id: '5',
-    title: 'Propósitos de Deus',
-    preacher: 'Pr. João Silva',
-    date: '17/08/2026',
-    duration: '40:20',
-    thumbnail: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-    description: 'Conhecendo os propósitos de Deus para sua vida.',
-  },
-  {
-    id: '6',
-    title: 'Vitória em Cristo',
-    preacher: 'Pr. Marcos Santos',
-    date: '10/08/2026',
-    duration: '44:10',
-    thumbnail: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-    description: 'Como viver em vitória através de Cristo.',
   },
 ];
 

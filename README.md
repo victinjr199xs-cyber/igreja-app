@@ -18,8 +18,12 @@ bíblico, com notificações diárias de versículo e lembrete de leitura.
 
 ```bash
 npm install
+cp .env.example .env    # e preencha a chave do YouTube (ver "Pregações")
 npx expo start
 ```
+
+Sem o `.env`, a aba Pregações mostra um erro de chave não configurada; o resto do
+app funciona normalmente.
 
 Leia o QR code com o Expo Go. Para limpar o cache do Metro, use `npx expo start -c`.
 
@@ -44,13 +48,14 @@ src/
   navigation/AppNavigator    bottom tabs: Calendário, Pregações, Rádio, Bíblia
   screens/
     CalendarScreen           programação da semana, por dia
-    SermonsScreen            lista de pregações + player em modal
+    SermonsScreen            séries e cultos do YouTube + player em modal
     RadioScreen              player de streaming + estações + playlist
     BibleScreen              versículo do dia, busca de livros, capítulos
   services/
     notificationService      permissões, canal Android e agendamento diário
+    youtubeService           API do YouTube, cache local e "continuar assistindo"
   constants/theme            COLORS, SIZES, FONTS
-  data/churchData            eventos, pregações e versículos do dia
+  data/churchData            eventos e versículos do dia
   data/bible/
     books.ts                 índice gerado: 66 livros + carga sob demanda
     blivre/                  um JSON por livro (Bíblia Livre)
@@ -59,14 +64,65 @@ scripts/build-bible.mjs      gera books.ts e os JSONs por livro
 
 ## Mídia
 
-`RadioScreen` usa **expo-audio** (`useAudioPlayer` + `useAudioPlayerStatus`) e
-`SermonsScreen` usa **expo-video** (`useVideoPlayer` + `VideoView`). O pacote
-`expo-av`, usado até então, foi removido no SDK 54 e não funciona mais.
+`RadioScreen` usa **expo-audio** (`useAudioPlayer` + `useAudioPlayerStatus`). O
+pacote `expo-av`, usado até então, foi removido no SDK 54 e não funciona mais.
 
 O player de áudio é recriado a cada troca de estação — o hook libera o anterior
-sozinho, então não há `unload` manual. O player de vídeo vive no nível do
-componente, e não dentro do `<Modal>`, por isso a tela pausa explicitamente ao
-fechar.
+sozinho, então não há `unload` manual.
+
+## Pregações
+
+A aba lê o canal [Casa de Adoração Official](https://www.youtube.com/@casadeadoracaoofficial)
+pela **YouTube Data API v3** e toca os vídeos com o player oficial do YouTube
+(`react-native-youtube-iframe`). Vídeo publicado no canal aparece no app sozinho,
+sem republicar nada.
+
+- **Séries** — as playlists do canal, que já são a curadoria da igreja.
+- **Cultos** — todos os uploads com 20 min ou mais, do mais recente ao mais
+  antigo. O corte separa os cultos (40 min+) dos devocionais curtos (até ~9 min);
+  no canal não há vídeos entre 10 e 40 min.
+- **Continuar assistindo** — ao fechar o player no meio de um vídeo, o app guarda
+  o minuto e oferece retomar.
+- **A seguir** — ao fim de um vídeo, o próximo da série começa sozinho.
+
+O player do YouTube é a única forma permitida pelos Termos de Serviço. Por isso
+**não há download nem modo offline** para os vídeos — diferente da Bíblia.
+
+### Chave da API
+
+A chave vai em `.env` (ignorado pelo Git), a partir de `.env.example`:
+
+```
+EXPO_PUBLIC_YOUTUBE_API_KEY=...
+```
+
+Ela só lê dados públicos, então **não** exige acesso à conta do canal. Crie em
+[Google Cloud Console](https://console.cloud.google.com) → APIs e serviços →
+Credenciais, com a API **YouTube Data API v3** ativada, e restrinja a chave a essa
+API. Para o build de produção, cadastre a mesma variável no EAS.
+
+O prefixo `EXPO_PUBLIC_` embute a chave no app, e ela pode ser extraída do APK —
+é assim com qualquer chave em app mobile. A restrição à YouTube Data API v3 é o
+que limita o estrago: quem a extrair só consegue ler dados públicos do YouTube
+usando a sua cota.
+
+### Cota
+
+O limite gratuito é de 10.000 unidades por dia, **por chave** — ou seja,
+compartilhado entre todos os aparelhos. Cada chamada custa 1 unidade, e o cache
+local segura o consumo:
+
+| Dado | Chamadas | Cache no aparelho |
+|---|---|---|
+| Lista de séries | 1 | 24 h |
+| Vídeos de uma série | 2 | 24 h |
+| Cultos, 50 mais recentes | 2 | 3 h |
+| "Carregar cultos anteriores" | 2 | não |
+
+Isso dá ~7 unidades por usuário por dia, ou ~1.400 usuários diários antes do
+limite. Se a cota acabar, o app segue mostrando o que tem em cache e a API volta
+no dia seguinte; não há cobrança. Para acompanhar: APIs e serviços → Painel →
+YouTube Data API v3.
 
 ## Bíblia
 
@@ -127,22 +183,19 @@ as mensagens para o token.
 
 ## Estado dos dados
 
-Todo o conteúdo em `src/data/churchData.ts` é de demonstração e precisa ser
-substituído por dados reais da igreja. Dois pontos que afetam o funcionamento
-hoje:
+Os eventos e versículos em `src/data/churchData.ts` são de demonstração e
+precisam ser substituídos por dados reais da igreja. Um ponto afeta o
+funcionamento hoje:
 
 - **Estações de rádio** — as três URLs em `RadioScreen` são placeholders e
   respondem `403`. A tela funciona, mas não há áudio até apontarem para um
   stream real.
-- **Vídeos das pregações** — apontam para o bucket de amostras do Google
-  (`commondatastorage.googleapis.com`), que também responde `403`. O player
-  abre, mas não carrega.
 
 A playlist exibida na tela de Rádio é decorativa: as faixas não têm URL própria,
 e tocá-las inicia a estação selecionada.
 
 O texto bíblico **não** é dado de demonstração: é a Bíblia Livre completa, e
-está pronta para uso.
+está pronta para uso. As pregações também não: vêm ao vivo do canal da igreja.
 
 ## Licença
 

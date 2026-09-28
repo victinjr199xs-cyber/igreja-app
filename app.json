@@ -39,7 +39,6 @@
         }
       ],
       "expo-audio",
-      "expo-video",
       "expo-font",
       "expo-asset",
       [
