@@ -18,6 +18,22 @@ export interface BibleVerse {
   verse: number;
 }
 
+export const CHURCH_INFO = {
+  name: 'Casa de Adoração',
+  street: 'R. João Alves da Silveira',
+  district: 'St. Cristina II',
+  city: 'Trindade - GO',
+  zip: '75389-275',
+  /** Exibição: (62) 98343-3231. */
+  phoneDisplay: '(62) 98343-3231',
+  /** Internacional, só dígitos: para tel: e wa.me. */
+  phoneE164: '5562983433231',
+  instagram: 'https://www.instagram.com/casadeadoracaooficial/',
+  youtube: 'https://www.youtube.com/@casadeadoracaoofficial',
+};
+
+export const CHURCH_ADDRESS = `${CHURCH_INFO.street} - ${CHURCH_INFO.district}, ${CHURCH_INFO.city}, ${CHURCH_INFO.zip}`;
+
 // Horários oficiais, do banner do canal da igreja no YouTube.
 export const WEEKLY_EVENTS: ChurchEvent[] = [
   {
@@ -26,7 +42,7 @@ export const WEEKLY_EVENTS: ChurchEvent[] = [
     description: 'Adoração e ministração da Palavra.',
     day: 3,
     startTime: '19:30',
-    location: 'Casa de Adoração · Trindade-GO',
+    location: 'St. Cristina II · Trindade-GO',
     type: 'culto',
   },
   {
@@ -35,7 +51,7 @@ export const WEEKLY_EVENTS: ChurchEvent[] = [
     description: 'Adoração e ministração da Palavra.',
     day: 0,
     startTime: '18:00',
-    location: 'Casa de Adoração · Trindade-GO',
+    location: 'St. Cristina II · Trindade-GO',
     type: 'culto',
   },
 ];

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SIZES, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
 import ChurchLogo from '../components/ChurchLogo';
+import ChurchContactCard from '../components/ChurchContactCard';
 import { DAILY_VERSES, WEEKLY_EVENTS, getNextEvent } from '../data/churchData';
 import { fetchCultos, Video } from '../services/youtubeService';
 
@@ -153,6 +154,11 @@ export default function HomeScreen() {
         ))}
       </View>
 
+      <Text style={styles.sectionTitle}>Visite-nos</Text>
+      <View style={styles.contact}>
+        <ChurchContactCard />
+      </View>
+
       <Text style={styles.sectionTitle}>Siga a igreja</Text>
       <View style={styles.social}>
         <TouchableOpacity style={styles.socialButton} onPress={() => Linking.openURL(INSTAGRAM_URL)}>
@@ -185,6 +191,10 @@ const makeStyles = (c: Palette) =>
   settingsButton: {
     position: 'absolute',
     right: SIZES.padding,
+  },
+  contact: {
+    marginHorizontal: SIZES.padding,
+    marginTop: 10,
   },
   schedule: {
     flexDirection: 'row',

@@ -118,21 +118,24 @@ sozinho, então não há `unload` manual.
 
 ### Estações
 
-| Rádio | Stream |
+A lista fica em `src/data/radioStations.ts`, separada em três abas por idioma:
+
+| Aba | Rádios |
 |---|---|
-| Vinha FM 91.9 (Goiânia) | Icecast/Shoutcast, MP3 |
-| Melodia FM 97.5 (RJ) | StreamTheWorld, AAC — via redirect que escolhe o servidor |
-| Novo Tempo | HLS (`.m3u8`) |
-| Rádio Super 100.5 (BH) | Shoutcast, MP3 |
+| 🇧🇷 Brasil | Vinha FM, Rede Aleluia (Goiânia), Sara Brasil FM, Feliz FM, Novo Tempo, Melodia FM, Rádio Super, Gospel FM |
+| 🇺🇸 English | K-LOVE, Air1, Moody Radio, Premier Christian Radio, Premier Praise, UCB 1, Spirit FM |
+| 🇪🇸 Español | Radio Visión Cristiana, Ondas de Vida, HCJB, Alfa y Omega, Radio Viva, Red Nacional Cristiana, Radio Cristiana Venezuela |
 
 São rádios de terceiros, tocadas pelo stream público oficial de cada uma. Todas
-em HTTPS, que iOS e Android exigem. Antes de publicar na loja, vale pedir
-autorização por escrito às emissoras. Para trocar ou adicionar, edite
-`RADIO_STATIONS` em `RadioScreen`; o diretório
-[Radio Browser](https://www.radio-browser.info) ajuda a achar os links.
+em HTTPS, que iOS e Android exigem, e testadas com um GET antes de entrar. A
+Gospel FM 90.1 (SP) ficou de fora porque o certificado do servidor dela é
+inválido. Antes de publicar na loja, vale pedir autorização às emissoras. O
+diretório [Radio Browser](https://www.radio-browser.info) ajuda a achar links.
 
 Rádio ao vivo não tem duração, então a tela não mostra barra de progresso. Os
-botões ⏮ ⏭ trocam de estação.
+botões ⏮ ⏭ trocam de estação dentro do idioma atual. Se o stream não começar
+em 20 s, a tela mostra "sem sinal" em vez de carregar para sempre. O app
+lembra a última estação ouvida.
 
 ### Segundo plano e tela de bloqueio
 

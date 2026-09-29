@@ -24,6 +24,8 @@ import {
 } from '../context/SettingsContext';
 import ChurchLogo from '../components/ChurchLogo';
 import { clearYoutubeCache } from '../services/youtubeService';
+import { openChurchMap, whatsappChurch } from '../services/contactService';
+import { CHURCH_ADDRESS, CHURCH_INFO } from '../data/churchData';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/casadeadoracaooficial/';
 const YOUTUBE_URL = 'https://www.youtube.com/@casadeadoracaoofficial';
@@ -210,6 +212,22 @@ export default function SettingsScreen() {
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>YouTube</Text>
             <Text style={styles.rowDetail}>Casa de Adoração Official</Text>
+          </View>
+          <Ionicons name="open-outline" size={18} color={colors.gray} />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={openChurchMap}>
+          <Ionicons name="location-outline" size={22} color={colors.primary} />
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Endereço</Text>
+            <Text style={styles.rowDetail}>{CHURCH_ADDRESS}</Text>
+          </View>
+          <Ionicons name="navigate-outline" size={18} color={colors.gray} />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={whatsappChurch}>
+          <Ionicons name="logo-whatsapp" size={22} color={colors.primary} />
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Contato</Text>
+            <Text style={styles.rowDetail}>{CHURCH_INFO.phoneDisplay} · WhatsApp</Text>
           </View>
           <Ionicons name="open-outline" size={18} color={colors.gray} />
         </TouchableOpacity>

@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { SIZES, FONTS, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
+import ChurchContactCard from '../components/ChurchContactCard';
+import { openChurchMap } from '../services/contactService';
 import { WEEKLY_EVENTS, ChurchEvent } from '../data/churchData';
 
 const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -114,7 +116,7 @@ export default function CalendarScreen() {
       <ScrollView style={styles.eventsList} showsVerticalScrollIndicator={false}>
         {selectedEvents.length > 0 ? (
           selectedEvents.map((event) => (
-            <TouchableOpacity key={event.id} style={styles.eventCard}>
+            <TouchableOpacity key={event.id} style={styles.eventCard} onPress={openChurchMap}>
               <View style={[styles.eventTypeBar, { backgroundColor: EVENT_COLORS[event.type] }]} />
               <View style={styles.eventContent}>
                 <View style={styles.eventHeader}>
@@ -155,6 +157,9 @@ export default function CalendarScreen() {
             <Text style={styles.emptyText}>Não há programação para este dia.</Text>
           </View>
         )}
+        <View style={{ marginTop: 8, marginBottom: 24 }}>
+          <ChurchContactCard />
+        </View>
       </ScrollView>
     </View>
   );
