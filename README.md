@@ -166,9 +166,16 @@ sem republicar nada.
 - **Cultos** — todos os uploads com 20 min ou mais, do mais recente ao mais
   antigo. O corte separa os cultos (40 min+) dos devocionais curtos (até ~9 min);
   no canal não há vídeos entre 10 e 40 min.
-- **Continuar assistindo** — ao fechar o player no meio de um vídeo, o app guarda
-  o minuto e oferece retomar.
+- **Destaques** — aba inicial: último culto em destaque, continuar assistindo,
+  carrossel de séries e cultos recentes. No horário dos cultos (programação em
+  `churchData`) aparece um aviso que abre `/live` do canal no YouTube.
+- **Histórico por vídeo** — `yt:history` guarda até 60 vídeos com o minuto em
+  que a pessoa parou. Daí saem a barra de progresso nas miniaturas, o selo
+  "Assistido", o "continuar assistindo" e o "continuar · episódio N" das
+  séries. Tocar um vídeo começado retoma de onde parou.
+- **Cultos** agrupados por mês, com busca pelo título (entre os já carregados).
 - **A seguir** — ao fim de um vídeo, o próximo da série começa sozinho.
+- **Compartilhar** e **abrir no YouTube** no player.
 
 O player do YouTube é a única forma permitida pelos Termos de Serviço. Por isso
 **não há download nem modo offline** para os vídeos — diferente da Bíblia.

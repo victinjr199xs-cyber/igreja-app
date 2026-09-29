@@ -228,36 +228,88 @@ export async function fetchCultos(pageToken?: string): Promise<CultosPage> {
   return pageToken ? load() : cached('yt:cultos', TTL_CULTOS, load);
 }
 
+// Histórico de reprodução: um registro por vídeo, para o "continuar
+// assistindo", a barra de progresso nas miniaturas e o ✓ de assistido.
+const HISTORY_KEY = 'yt:history';
+// Chave antiga, de quando só o último vídeo era lembrado.
+const LEGACY_PROGRESS_KEY = 'yt:progress';
+const HISTORY_MAX = 60;
+
+export interface HistoryEntry {
+  video: Video;
+  seconds: number;
+  finished: boolean;
+  updatedAt: number;
+}
+
+export type WatchHistory = Record<string, HistoryEntry>;
+
+export async function loadHistory(): Promise<WatchHistory> {
+  try {
+    const raw = await AsyncStorage.getItem(HISTORY_KEY);
+    if (raw) return JSON.parse(raw);
+    // Migra o formato antigo, para ninguém perder onde parou.
+    const legacy = await AsyncStorage.getItem(LEGACY_PROGRESS_KEY);
+    if (legacy) {
+      const old: WatchProgress = JSON.parse(legacy);
+      return {
+        [old.video.id]: { video: old.video, seconds: old.seconds, finished: false, updatedAt: Date.now() },
+      };
+    }
+  } catch {
+    // Histórico corrompido não pode impedir a aba de abrir.
+  }
+  return {};
+}
+
+function saveHistory(history: WatchHistory) {
+  AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history)).catch(() => {});
+  AsyncStorage.removeItem(LEGACY_PROGRESS_KEY).catch(() => {});
+}
+
+/**
+ * Registra até onde o vídeo foi assistido e devolve o histórico novo (já
+ * gravado). Mantém só os HISTORY_MAX mais recentes.
+ */
+export function recordWatch(
+  history: WatchHistory,
+  video: Video,
+  seconds: number,
+  finished: boolean
+): WatchHistory {
+  const next: WatchHistory = {
+    ...history,
+    [video.id]: { video, seconds: Math.floor(seconds), finished, updatedAt: Date.now() },
+  };
+  const ids = Object.keys(next).sort((a, b) => next[b].updatedAt - next[a].updatedAt);
+  for (const id of ids.slice(HISTORY_MAX)) delete next[id];
+  saveHistory(next);
+  return next;
+}
+
+export function removeFromHistory(history: WatchHistory, videoId: string): WatchHistory {
+  const next = { ...history };
+  delete next[videoId];
+  saveHistory(next);
+  return next;
+}
+
+/** Vídeos começados e não terminados, do mais recente para o mais antigo. */
+export function inProgress(history: WatchHistory): HistoryEntry[] {
+  return Object.values(history)
+    .filter((e) => !e.finished && e.seconds > 30)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
 /**
  * Apaga as listas guardadas do YouTube (a próxima abertura busca de novo).
- * O "continuar assistindo" só sai se pedido.
+ * O histórico de reprodução só sai se pedido.
  */
-export async function clearYoutubeCache(includeProgress = false): Promise<void> {
+export async function clearYoutubeCache(includeHistory = false): Promise<void> {
   const keys = await AsyncStorage.getAllKeys();
+  const history = [HISTORY_KEY, LEGACY_PROGRESS_KEY];
   await AsyncStorage.multiRemove(
-    keys.filter((k) => k.startsWith('yt:') && (includeProgress || k !== PROGRESS_KEY))
+    keys.filter((k) => k.startsWith('yt:') && (includeHistory || !history.includes(k)))
   );
 }
 
-const PROGRESS_KEY = 'yt:progress';
-
-export async function loadProgress(): Promise<WatchProgress | null> {
-  try {
-    const raw = await AsyncStorage.getItem(PROGRESS_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-export async function saveProgress(progress: WatchProgress | null): Promise<void> {
-  try {
-    if (progress) {
-      await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
-    } else {
-      await AsyncStorage.removeItem(PROGRESS_KEY);
-    }
-  } catch {
-    // Perder o "continuar assistindo" não justifica interromper o usuário.
-  }
-}

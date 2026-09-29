@@ -56,6 +56,22 @@ export const WEEKLY_EVENTS: ChurchEvent[] = [
   },
 ];
 
+// Janela em que um culto é considerado "acontecendo agora".
+const LIVE_BEFORE_MIN = 10;
+const LIVE_AFTER_MIN = 150;
+
+/** O culto em andamento agora (pelo horário da programação), se houver. */
+export function getCurrentEvent(now = new Date()): ChurchEvent | null {
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  for (const event of WEEKLY_EVENTS) {
+    if (event.day !== now.getDay()) continue;
+    const [h, m] = event.startTime.split(':').map(Number);
+    const start = h * 60 + m;
+    if (minutes >= start - LIVE_BEFORE_MIN && minutes <= start + LIVE_AFTER_MIN) return event;
+  }
+  return null;
+}
+
 /** O próximo culto a partir de agora, com a data em que acontece. */
 export function getNextEvent(now = new Date()): { event: ChurchEvent; date: Date } | null {
   let best: { event: ChurchEvent; date: Date } | null = null;
