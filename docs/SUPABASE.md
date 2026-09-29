@@ -13,7 +13,8 @@ app, e funciona no Expo Go.
    senha do banco num lugar seguro.
 3. Em **Project Settings › API**, copie:
    - **Project URL** → `EXPO_PUBLIC_SUPABASE_URL`
-   - **anon public** key → `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+   - **Publishable key** (`sb_publishable_…`) — ou, em projetos antigos, a
+     **anon public** (`eyJ…`) → `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 4. Cole no `.env` do projeto (veja `.env.example`) e reinicie o Expo com
    `npx expo start -c`.
 
@@ -68,6 +69,19 @@ grant execute on function public.delete_own_account() to authenticated;
 
 O botão **Configurações › Conta › Excluir conta** chama essa função.
 
+> O `set search_path = ''` é obrigatório: função `security definer` sem ele
+> pode ser sequestrada por quem criar um objeto com o mesmo nome em outro
+> schema. O **Security Advisor** do Supabase aponta isso como
+> *function_search_path_mutable*.
+
+## Tabelas e políticas (RLS)
+
+Hoje o app **não cria nem lê tabelas**: usa só o Auth. Não há política a
+configurar. Quando algo for guardado no banco (pedidos de oração, inscrições…),
+toda tabela nova precisa de **Row Level Security ligada** e de políticas que
+limitem cada usuário às próprias linhas — sem isso, a chave pública do app lê
+a tabela inteira.
+
 ## 4. Antes de publicar: e-mail próprio
 
 O envio de e-mails embutido do Supabase tem limite baixo (poucos por hora) e
@@ -75,6 +89,11 @@ serve só para testes. Para produção, configure um SMTP em **Project Settings 
 Authentication › SMTP Settings** — por exemplo [Resend](https://resend.com) ou
 [Brevo](https://www.brevo.com), ambos com plano gratuito — usando um remetente
 como `nao-responda@casadeadoracao.com.br`.
+
+> **Resend em modo de teste** (remetente `onboarding@resend.dev`, sem domínio
+> verificado) só entrega e-mails **para o endereço dono da conta Resend**.
+> Qualquer outra pessoa que se cadastrar não recebe o código e fica presa na
+> tela de confirmação. Verifique um domínio no Resend antes de liberar o app.
 
 ## 5. Build
 
