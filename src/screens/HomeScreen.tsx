@@ -42,13 +42,6 @@ const MONTHS = [
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
 ];
 
-const QUICK_LINKS: { tab: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { tab: 'Pregações', label: 'Pregações', icon: 'play' },
-  { tab: 'Rádio', label: 'Rádio', icon: 'radio' },
-  { tab: 'Bíblia', label: 'Bíblia', icon: 'book' },
-  { tab: 'Calendário', label: 'Agenda', icon: 'calendar' },
-];
-
 // Mesmas chaves gravadas pelas abas Bíblia e Rádio.
 const BIBLE_LAST_KEY = 'bible:last';
 const RADIO_LAST_KEY = 'radio:last';
@@ -234,21 +227,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )
       )}
-
-      <View style={styles.quickRow}>
-        {QUICK_LINKS.map((link) => (
-          <TouchableOpacity
-            key={link.tab}
-            style={styles.quickItem}
-            onPress={() => navigation.navigate(link.tab)}
-          >
-            <View style={styles.quickCircle}>
-              <Ionicons name={link.icon} size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.quickLabel}>{link.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
 
       {hasContinue && (
         <>
@@ -549,32 +527,6 @@ const makeStyles = (c: Palette) =>
       fontSize: SIZES.small,
       color: '#ffffffDD',
       marginTop: 1,
-    },
-    quickRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      marginTop: 20,
-      paddingHorizontal: 8,
-    },
-    quickItem: {
-      alignItems: 'center',
-      width: 76,
-    },
-    quickCircle: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: c.card,
-      borderWidth: 1,
-      borderColor: c.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    quickLabel: {
-      ...FONTS.medium,
-      fontSize: SIZES.small,
-      color: c.text,
-      marginTop: 6,
     },
     sectionHeader: {
       flexDirection: 'row',
