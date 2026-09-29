@@ -294,6 +294,52 @@ O texto bíblico **não** é dado de demonstração: é a Bíblia Livre completa
 está pronta para uso. As pregações também não: vêm ao vivo do canal da igreja.
 As rádios tocam os streams reais das emissoras.
 
+## Conteúdo editável
+
+Avisos da Início e eventos especiais vêm de `content/igreja.json`, baixado do
+GitHub pelo app (cache de 30 min). Editar esse arquivo no site do GitHub muda o
+app de todo mundo sem publicar versão nova — passo a passo em
+`content/LEIA-ME.md`.
+
+## Versículo do dia
+
+`src/data/dailyVerses.ts` é **gerado** por `scripts/build-daily-verses.mjs`:
+484 referências com o texto da Bíblia Livre embutida, em sequência contínua
+(nenhum se repete antes de a lista acabar). Para mudar, edite `REFS` no script e
+rode `node scripts/build-daily-verses.mjs`.
+
+## Dízimos (Pix)
+
+Preencha `CHURCH_INFO.pix.key` em `src/data/churchData.ts`. Com a chave vazia,
+a tela e o atalho ficam escondidos. O QR e o "copia e cola" são um BR Code
+estático gerado no app (`pixService.ts`), sem valor definido.
+
+## Publicação
+
+Identificadores: `com.casadeadoracao.app` (iOS e Android). **Não mudam depois
+da primeira publicação.**
+
+1. Contas: Apple Developer (US$ 99/ano) e Google Play Console (US$ 25, uma vez).
+2. `npm install -g eas-cli`, `eas login` e `eas init` (grava o `projectId`).
+3. Cadastre a chave do YouTube no EAS — o `.env` não vai para o build:
+   `eas env:create --name EXPO_PUBLIC_YOUTUBE_API_KEY --value <chave> --environment production --environment preview --visibility plaintext`
+4. Builds (`eas.json`):
+   - `eas build -p android --profile preview` → APK para instalar e testar;
+   - `eas build -p ios --profile production` → envie ao TestFlight com
+     `eas submit -p ios`;
+   - `eas build -p android --profile production` → AAB para a Play Store.
+5. Política de privacidade: `PRIVACIDADE.md` (link também em Configurações).
+6. **Restrinja a chave do YouTube** no Google Cloud › Credenciais:
+   - restrição de API: só *YouTube Data API v3*;
+   - restrição de aplicativo: iOS com bundle `com.casadeadoracao.app` e Android
+     com pacote `com.casadeadoracao.app` + SHA-1 do certificado (EAS ›
+     Credentials). O app envia esses dados nos cabeçalhos
+     (`X-Ios-Bundle-Identifier`, `X-Android-Package`, `X-Android-Cert`); o SHA-1
+     vai em `EXPO_PUBLIC_ANDROID_CERT_SHA1`.
+   - Com restrição de aplicativo, a chave deixa de funcionar no Expo Go; use
+     uma segunda chave, sem essa restrição, só para desenvolvimento.
+7. Peça autorização às rádios antes de publicar (streams de terceiros).
+
 ## Licença
 
 Ver [LICENSE](LICENSE).

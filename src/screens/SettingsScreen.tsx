@@ -29,6 +29,9 @@ import { CHURCH_ADDRESS, CHURCH_INFO } from '../data/churchData';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/casadeadoracaooficial/';
 const YOUTUBE_URL = 'https://www.youtube.com/@casadeadoracaoofficial';
+// A App Store exige um link público para a política; o GitHub a exibe formatada.
+const PRIVACY_URL =
+  'https://github.com/victinjr199xs-cyber/igreja-app/blob/main/PRIVACIDADE.md';
 
 const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { mode: 'system', label: 'Automático', icon: 'phone-portrait-outline' },
@@ -238,6 +241,14 @@ export default function SettingsScreen() {
             <Text style={styles.rowDetail}>Bíblia Livre · domínio público</Text>
           </View>
         </View>
+        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={() => Linking.openURL(PRIVACY_URL)}>
+          <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Política de privacidade</Text>
+            <Text style={styles.rowDetail}>Sem cadastro, sem rastreamento</Text>
+          </View>
+          <Ionicons name="open-outline" size={18} color={colors.gray} />
+        </TouchableOpacity>
         <View style={[styles.row, styles.rowDivider]}>
           <Ionicons name="information-circle-outline" size={22} color={colors.primary} />
           <View style={styles.rowText}>

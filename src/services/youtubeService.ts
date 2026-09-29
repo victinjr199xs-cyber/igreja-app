@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 const API = 'https://www.googleapis.com/youtube/v3';
 const CHANNEL_ID = 'UCp8El__iNcoGDlD4Lt9h-hg';
@@ -62,13 +64,36 @@ function parseDuration(iso: string): number {
   );
 }
 
+/**
+ * Identifica o app para o Google. Com estes cabeçalhos, a chave pode ser
+ * restrita no Google Cloud a "apps iOS com este bundle ID" / "apps Android com
+ * este pacote + SHA-1", e deixa de servir para quem a extrair do app. Sem a
+ * restrição configurada, eles são simplesmente ignorados.
+ */
+function appIdentityHeaders(): Record<string, string> {
+  if (Platform.OS === 'ios') {
+    const bundle = Constants.expoConfig?.ios?.bundleIdentifier;
+    return bundle ? { 'X-Ios-Bundle-Identifier': bundle } : {};
+  }
+  if (Platform.OS === 'android') {
+    const pkg = Constants.expoConfig?.android?.package;
+    // SHA-1 do certificado de assinatura do build (EAS > Credentials).
+    const cert = process.env.EXPO_PUBLIC_ANDROID_CERT_SHA1?.replace(/:/g, '');
+    return {
+      ...(pkg ? { 'X-Android-Package': pkg } : {}),
+      ...(cert ? { 'X-Android-Cert': cert } : {}),
+    };
+  }
+  return {};
+}
+
 async function get<T>(path: string, params: Record<string, string>): Promise<T> {
   const key = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY;
   if (!key) {
     throw new Error('EXPO_PUBLIC_YOUTUBE_API_KEY não configurada no .env');
   }
   const query = new URLSearchParams({ ...params, key }).toString();
-  const res = await fetch(`${API}/${path}?${query}`);
+  const res = await fetch(`${API}/${path}?${query}`, { headers: appIdentityHeaders() });
   // Proxy ou portal de Wi-Fi podem responder HTML: não dá para supor JSON.
   const body = await res.json().catch(() => null);
   if (!res.ok || !body) {

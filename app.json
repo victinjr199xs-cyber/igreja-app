@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.igreja.app",
+      "bundleIdentifier": "com.casadeadoracao.app",
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -20,7 +20,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.igreja.app",
+      "package": "com.casadeadoracao.app",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
