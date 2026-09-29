@@ -22,9 +22,14 @@
       },
       "package": "com.casadeadoracao.app",
       "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
-        "SCHEDULE_EXACT_ALARM",
-        "VIBRATE"
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.VIBRATE",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
       ]
     },
     "web": {
@@ -71,6 +76,12 @@
           "backgroundColor": "#E2E2E2"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2e7f5912-204f-456a-9164-d4dc02ba8b5e"
+      }
+    },
+    "owner": "victinjr199xs"
   }
 }
