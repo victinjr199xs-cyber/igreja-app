@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { WEEKLY_EVENTS } from '../data/churchData';
 import { verseOfDay } from '../data/dailyVerses';
+import { reportError } from './errorReporter';
 
 // Dias de versículo agendados de uma vez (+ leitura e cultos, bem abaixo do
 // limite de 64 do iOS).
@@ -44,24 +45,26 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
     return undefined;
   }
 
-  // O token Expo só é necessário para push remoto (enviado por um servidor).
-  // As notificações locais deste app funcionam sem ele, então a ausência de
-  // projectId não é um erro: apenas não há token a devolver.
+  // O token Expo só serve para push remoto (enviado por um servidor), que o app
+  // ainda não usa: as notificações daqui são todas locais. No Android, pedir o
+  // token sem o Firebase configurado falha a cada abertura — por isso fica
+  // desligado até existir o envio remoto (e o google-services.json).
+  if (!REMOTE_PUSH_ENABLED) return undefined;
+
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-
-  if (!projectId) {
-    return undefined;
-  }
+  if (!projectId) return undefined;
 
   try {
     const token = await Notifications.getExpoPushTokenAsync({ projectId });
     return token.data;
   } catch (error) {
-    console.warn('Não foi possível obter o token de push:', error);
+    reportError('push-token', error);
     return undefined;
   }
 }
+
+const REMOTE_PUSH_ENABLED = false;
 
 export interface NotificationPrefs {
   notifyDailyVerse: boolean;

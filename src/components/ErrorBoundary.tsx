@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { reportError } from '../services/errorReporter';
 
 interface State {
   error: Error | null;
@@ -19,8 +20,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // Sem ferramenta de monitoramento ainda: ao menos fica no log do build.
-    console.error('Erro não tratado na interface:', error, info.componentStack);
+    reportError('ui', error, { componentStack: info.componentStack?.slice(0, 1500) });
   }
 
   render() {

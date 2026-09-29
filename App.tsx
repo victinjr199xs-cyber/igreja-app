@@ -18,11 +18,15 @@ import { SUPABASE_CONFIGURED } from './src/services/supabase';
 import AuthScreen from './src/screens/AuthScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { installGlobalErrorHandler, reportError } from './src/services/errorReporter';
 import { registerForPushNotificationsAsync } from './src/services/notificationService';
 
 // Segura a splash até as fontes e as preferências carregarem: sem isso a logo
 // piscaria na fonte do sistema, e o tema escuro, no claro.
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Erros não capturados em qualquer parte do app vão para a tabela app_errors.
+installGlobalErrorHandler();
 
 function Root() {
   const { loaded, isDark } = useSettings();
@@ -43,7 +47,7 @@ function Root() {
     // Pede a permissão de notificação só depois do login, não por cima da
     // tela de entrada. O agendamento fica com o SettingsProvider.
     if (!signedIn) return;
-    registerForPushNotificationsAsync().catch((e) => console.warn('Registro de push falhou:', e));
+    registerForPushNotificationsAsync().catch((e) => reportError('notifications-permission', e));
   }, [signedIn]);
 
   useEffect(() => {

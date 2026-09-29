@@ -33,11 +33,16 @@ no `.gitignore`. Se precisar gerá-las, rode `npx expo prebuild`.
 ### Verificações
 
 ```bash
-npx tsc --noEmit    # checagem de tipos
+npm test            # testes da lógica (Jest): datas, Pix, versículos, conteúdo...
+npm run typecheck   # checagem de tipos
 npx expo-doctor     # dependências, versões e schema do app.json
+npm run check       # os três juntos — rode antes de publicar
 ```
 
-Ambos devem passar sem nenhum aviso.
+Todos devem passar sem nenhum aviso. Os testes ficam em `__tests__/` ao lado
+do código testado e cobrem só funções puras (sem tela).
+
+Relatório de auditoria e pendências: `docs/AUDITORIA.md`.
 
 ## Estrutura
 
@@ -59,7 +64,15 @@ src/
     notificationService      permissões, canal Android e agendamento diário
     youtubeService           API do YouTube, cache local e "continuar assistindo"
   constants/theme            COLORS, SIZES, FONTS
-  data/churchData            eventos e versículos do dia
+  data/churchData            igreja, cultos, eventos especiais e lógica de datas
+  data/dailyVerses           484 versículos do dia (gerado)
+  utils/format               datas, horas e durações em português
+  services/errorReporter     erros do app → tabela app_errors
+  services/contentParser     validação do content/igreja.json
+  components/sermons         VideoRow e VideoPlayerModal da aba Pregações
+supabase/
+  migrations/                todo o SQL do banco, em ordem
+  functions/send-feedback    Edge Function das avaliações
   data/bible/
     books.ts                 índice gerado: 66 livros + carga sob demanda
     blivre/                  um JSON por livro (Bíblia Livre)

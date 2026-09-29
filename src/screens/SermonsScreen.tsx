@@ -7,15 +7,12 @@ import {
   SectionList,
   ScrollView,
   TouchableOpacity,
-  Modal,
-  Dimensions,
   Image,
   ActivityIndicator,
   TextInput,
   Linking,
-  Share,
 } from 'react-native';
-import YoutubePlayer, { PLAYER_STATES, YoutubeIframeRef } from 'react-native-youtube-iframe';
+import { PLAYER_STATES, YoutubeIframeRef } from 'react-native-youtube-iframe';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +26,10 @@ import {
 import { SIZES, FONTS, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
+import SectionHeader from '../components/SectionHeader';
+import VideoRow, { ThumbOverlay, watchedFraction } from '../components/sermons/VideoRow';
+import VideoPlayerModal from '../components/sermons/VideoPlayerModal';
+import { MONTHS, formatClock, formatDuration, formatShortDate } from '../utils/format';
 import { CHURCH_INFO, getCurrentEvent } from '../data/churchData';
 import {
   Serie,
@@ -43,9 +44,6 @@ import {
   inProgress,
 } from '../services/youtubeService';
 
-const { width } = Dimensions.get('window');
-const PLAYER_HEIGHT = Math.round((width * 9) / 16);
-const LIVE_URL = `${CHURCH_INFO.youtube}/live`;
 
 type Tab = 'destaques' | 'series' | 'cultos';
 
@@ -55,112 +53,10 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'cultos', label: 'Cultos' },
 ];
 
-const MONTHS = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-];
-
 interface PlayerState {
   list: Video[];
   index: number;
   start: number;
-}
-
-const pad = (n: number) => String(n).padStart(2, '0');
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds <= 0) return '';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return h > 0 ? `${h}h ${pad(m)}min` : `${m} min`;
-}
-
-function formatClock(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-}
-
-/** Fração assistida (0–1), ou null se o vídeo nunca foi aberto. */
-function watchedFraction(history: WatchHistory, video: Video): number | null {
-  const entry = history[video.id];
-  if (!entry) return null;
-  if (entry.finished) return 1;
-  return video.durationSeconds > 0 ? Math.min(1, entry.seconds / video.durationSeconds) : null;
-}
-
-type Styles = ReturnType<typeof makeStyles>;
-
-/** Duração no canto e barra de progresso embaixo, sobre a miniatura. */
-function ThumbOverlay({ video, history, styles }: { video: Video; history: WatchHistory; styles: Styles }) {
-  const fraction = watchedFraction(history, video);
-  const finished = history[video.id]?.finished;
-  return (
-    <>
-      {finished ? (
-        <View style={styles.watchedBadge}>
-          <Ionicons name="checkmark" size={12} color="#fff" />
-          <Text style={styles.badgeText}>Assistido</Text>
-        </View>
-      ) : video.durationSeconds > 0 ? (
-        <View style={styles.durationBadge}>
-          <Text style={styles.badgeText}>{formatDuration(video.durationSeconds)}</Text>
-        </View>
-      ) : null}
-      {fraction !== null && !finished && (
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${Math.max(4, fraction * 100)}%` }]} />
-        </View>
-      )}
-    </>
-  );
-}
-
-interface VideoRowProps {
-  video: Video;
-  history: WatchHistory;
-  prefix?: string;
-  onPress: () => void;
-}
-
-function VideoRow({ video, history, prefix = '', onPress }: VideoRowProps) {
-  const { styles } = useThemedStyles(makeStyles);
-  return (
-    <TouchableOpacity style={styles.videoRow} onPress={onPress} activeOpacity={0.8}>
-      <View style={styles.videoThumbBox}>
-        {video.thumbnail ? <Image source={{ uri: video.thumbnail }} style={styles.fill} /> : null}
-        <ThumbOverlay video={video} history={history} styles={styles} />
-      </View>
-      <View style={styles.videoInfo}>
-        <Text style={styles.videoTitle} numberOfLines={3}>
-          {prefix}
-          {video.title}
-        </Text>
-        <Text style={styles.videoMeta}>{formatDate(video.publishedAt)}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
-  const { styles } = useThemedStyles(makeStyles);
-  return (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionBar} />
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {action && (
-        <TouchableOpacity onPress={onAction} hitSlop={8}>
-          <Text style={styles.sectionAction}>{action} ›</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
 }
 
 export default function SermonsScreen() {
@@ -301,10 +197,6 @@ export default function SermonsScreen() {
     }
   };
 
-  const shareVideo = (video: Video) => {
-    Share.share({ message: `${video.title}\nhttps://youtu.be/${video.id}` }).catch(() => {});
-  };
-
   const current = player ? player.list[player.index] : null;
   const upNext = player && player.index < player.list.length - 1 ? player.list[player.index + 1] : null;
   const continueList = useMemo(() => inProgress(history).slice(0, 10), [history]);
@@ -377,7 +269,7 @@ export default function SermonsScreen() {
         {liveEvent && (
           <TouchableOpacity
             style={styles.liveBanner}
-            onPress={() => Linking.openURL(LIVE_URL)}
+            onPress={() => Linking.openURL(CHURCH_INFO.youtubeLive)}
             activeOpacity={0.85}
           >
             <View style={styles.liveDot} />
@@ -413,7 +305,7 @@ export default function SermonsScreen() {
                   </Text>
                 </View>
                 <Text style={styles.heroMeta}>
-                  {formatDate(hero.publishedAt)} · {formatDuration(hero.durationSeconds)}
+                  {formatShortDate(hero.publishedAt)} · {formatDuration(hero.durationSeconds)}
                 </Text>
               </View>
             </View>
@@ -448,7 +340,7 @@ export default function SermonsScreen() {
                       <View style={styles.continuePlay}>
                         <Ionicons name="play" size={20} color="#fff" />
                       </View>
-                      <ThumbOverlay video={entry.video} history={history} styles={styles} />
+                      <ThumbOverlay video={entry.video} history={history} />
                     </View>
                     <Text style={styles.continueTitle} numberOfLines={2}>
                       {entry.video.title}
@@ -659,85 +551,15 @@ export default function SermonsScreen() {
         </>
       )}
 
-      <Modal
-        visible={player !== null}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={closePlayer}
-      >
-        <View style={styles.modalContainer}>
-          {/* Modal em tela cheia não herda a área segura: sem isso o botão de
-              fechar fica sob o notch do iPhone. */}
-          <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={closePlayer}
-              accessibilityRole="button"
-              accessibilityLabel="Fechar vídeo"
-            >
-              <Ionicons name="chevron-down" size={28} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle} numberOfLines={1}>
-              {current?.title}
-            </Text>
-          </View>
-
-          {current && player && (
-            <>
-              {/* key força remontar ao trocar de vídeo: o start só vale na montagem. */}
-              <YoutubePlayer
-                key={current.id}
-                ref={playerRef}
-                height={PLAYER_HEIGHT}
-                videoId={current.id}
-                play
-                forceAndroidAutoplay
-                initialPlayerParams={{ start: player.start }}
-                onChangeState={onPlayerState}
-              />
-              <ScrollView style={styles.modalInfo} contentContainerStyle={{ padding: SIZES.padding }}>
-                <Text style={styles.modalVideoTitle}>{current.title}</Text>
-                <Text style={styles.modalMeta}>
-                  {formatDate(current.publishedAt)}
-                  {current.durationSeconds > 0 ? ` · ${formatDuration(current.durationSeconds)}` : ''}
-                  {player.start > 0 ? ` · retomado em ${formatClock(player.start)}` : ''}
-                </Text>
-
-                <View style={styles.actions}>
-                  <TouchableOpacity style={styles.actionButton} onPress={() => shareVideo(current)}>
-                    <Ionicons name="share-social-outline" size={20} color={colors.primary} />
-                    <Text style={styles.actionText}>Compartilhar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => Linking.openURL(`https://youtu.be/${current.id}`)}
-                  >
-                    <Ionicons name="logo-youtube" size={20} color={colors.primary} />
-                    <Text style={styles.actionText}>Abrir no YouTube</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {upNext && (
-                  <TouchableOpacity
-                    style={styles.upNext}
-                    onPress={() => setPlayer({ ...player, index: player.index + 1, start: 0 })}
-                  >
-                    <Text style={styles.upNextLabel}>A SEGUIR</Text>
-                    <View style={styles.upNextRow}>
-                      {upNext.thumbnail ? (
-                        <Image source={{ uri: upNext.thumbnail }} style={styles.upNextThumb} />
-                      ) : null}
-                      <Text style={styles.upNextTitle} numberOfLines={3}>
-                        {upNext.title}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
-            </>
-          )}
-        </View>
-      </Modal>
+      <VideoPlayerModal
+        video={current}
+        start={player?.start ?? 0}
+        upNext={upNext}
+        playerRef={playerRef}
+        onClose={closePlayer}
+        onChangeState={onPlayerState}
+        onPlayNext={() => player && setPlayer({ ...player, index: player.index + 1, start: 0 })}
+      />
     </View>
   );
 }
@@ -876,30 +698,6 @@ const makeStyles = (c: Palette) =>
       color: '#ffffffCC',
       marginTop: 2,
     },
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginHorizontal: SIZES.padding,
-      marginTop: 24,
-      marginBottom: 10,
-    },
-    sectionBar: {
-      width: 3,
-      height: 18,
-      backgroundColor: c.primary,
-      marginRight: 8,
-    },
-    sectionTitle: {
-      ...FONTS.bold,
-      fontSize: SIZES.large,
-      color: c.text,
-      flex: 1,
-    },
-    sectionAction: {
-      ...FONTS.medium,
-      fontSize: SIZES.font,
-      color: c.primary,
-    },
     carousel: {
       paddingHorizontal: SIZES.padding,
       gap: 12,
@@ -958,27 +756,6 @@ const makeStyles = (c: Palette) =>
     progressFill: {
       height: '100%',
       backgroundColor: '#E53935',
-    },
-    durationBadge: {
-      position: 'absolute',
-      right: 5,
-      bottom: 8,
-      backgroundColor: 'rgba(0,0,0,0.75)',
-      paddingHorizontal: 5,
-      paddingVertical: 1,
-      borderRadius: 4,
-    },
-    watchedBadge: {
-      position: 'absolute',
-      right: 5,
-      bottom: 5,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 3,
-      backgroundColor: c.primary,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 4,
     },
     countBadge: {
       position: 'absolute',
@@ -1077,36 +854,6 @@ const makeStyles = (c: Palette) =>
       fontSize: SIZES.medium,
       color: c.white,
     },
-    videoRow: {
-      flexDirection: 'row',
-      backgroundColor: c.card,
-      borderRadius: SIZES.radius,
-      marginBottom: 10,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    videoThumbBox: {
-      width: 140,
-      aspectRatio: 16 / 9,
-      backgroundColor: c.primaryLight,
-    },
-    videoInfo: {
-      flex: 1,
-      padding: 10,
-      justifyContent: 'center',
-    },
-    videoTitle: {
-      ...FONTS.medium,
-      fontSize: SIZES.font,
-      color: c.text,
-    },
-    videoMeta: {
-      ...FONTS.mono,
-      fontSize: 11,
-      color: c.textLight,
-      marginTop: 4,
-    },
     searchBox: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1184,93 +931,5 @@ const makeStyles = (c: Palette) =>
     retryText: {
       ...FONTS.medium,
       color: c.white,
-    },
-    modalContainer: {
-      flex: 1,
-      backgroundColor: c.black,
-    },
-    modalHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: SIZES.padding,
-      paddingBottom: 12,
-      backgroundColor: c.black,
-    },
-    closeButton: {
-      marginRight: 12,
-    },
-    modalTitle: {
-      ...FONTS.medium,
-      flex: 1,
-      fontSize: SIZES.medium,
-      color: '#fff',
-    },
-    modalInfo: {
-      flex: 1,
-      backgroundColor: c.background,
-    },
-    modalVideoTitle: {
-      ...FONTS.bold,
-      fontSize: SIZES.xl,
-      color: c.text,
-    },
-    modalMeta: {
-      ...FONTS.mono,
-      fontSize: SIZES.small,
-      color: c.textLight,
-      marginTop: 8,
-    },
-    actions: {
-      flexDirection: 'row',
-      gap: 10,
-      marginTop: 16,
-    },
-    actionButton: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      paddingVertical: 11,
-      borderRadius: SIZES.radius,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.card,
-    },
-    actionText: {
-      ...FONTS.medium,
-      fontSize: SIZES.font,
-      color: c.primary,
-    },
-    upNext: {
-      marginTop: 20,
-      padding: 12,
-      backgroundColor: c.card,
-      borderRadius: SIZES.radius,
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    upNextLabel: {
-      ...FONTS.mono,
-      fontSize: 11,
-      color: c.textLight,
-      letterSpacing: 1,
-    },
-    upNextRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      marginTop: 8,
-    },
-    upNextThumb: {
-      width: 110,
-      aspectRatio: 16 / 9,
-      borderRadius: 8,
-    },
-    upNextTitle: {
-      ...FONTS.medium,
-      flex: 1,
-      fontSize: SIZES.font,
-      color: c.text,
     },
   });

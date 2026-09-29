@@ -30,12 +30,6 @@ import { clearYoutubeCache } from '../services/youtubeService';
 import { openChurchMap, whatsappChurch } from '../services/contactService';
 import { CHURCH_ADDRESS, CHURCH_INFO } from '../data/churchData';
 
-const INSTAGRAM_URL = 'https://www.instagram.com/casadeadoracaooficial/';
-const YOUTUBE_URL = 'https://www.youtube.com/@casadeadoracaoofficial';
-// A App Store exige um link público para a política; o GitHub a exibe formatada.
-const PRIVACY_URL =
-  'https://github.com/victinjr199xs-cyber/igreja-app/blob/main/PRIVACIDADE.md';
-
 const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { mode: 'system', label: 'Automático', icon: 'phone-portrait-outline' },
   { mode: 'light', label: 'Claro', icon: 'sunny-outline' },
@@ -237,7 +231,7 @@ export default function SettingsScreen() {
         <View style={styles.about}>
           <ChurchLogo size="large" align="center" />
         </View>
-        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={() => Linking.openURL(INSTAGRAM_URL)}>
+        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={() => Linking.openURL(CHURCH_INFO.instagram)}>
           <Ionicons name="logo-instagram" size={22} color={colors.primary} />
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>Instagram</Text>
@@ -245,7 +239,7 @@ export default function SettingsScreen() {
           </View>
           <Ionicons name="open-outline" size={18} color={colors.gray} />
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={() => Linking.openURL(YOUTUBE_URL)}>
+        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={() => Linking.openURL(CHURCH_INFO.youtube)}>
           <Ionicons name="logo-youtube" size={22} color={colors.primary} />
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>YouTube</Text>
@@ -276,7 +270,7 @@ export default function SettingsScreen() {
             <Text style={styles.rowDetail}>Bíblia Livre · domínio público</Text>
           </View>
         </View>
-        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={() => Linking.openURL(PRIVACY_URL)}>
+        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={() => Linking.openURL(CHURCH_INFO.privacyPolicy)}>
           <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>Política de privacidade</Text>

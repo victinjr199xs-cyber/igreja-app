@@ -24,6 +24,7 @@ import { useThemedStyles } from '../context/SettingsContext';
 import ChurchLogo from '../components/ChurchLogo';
 import ChurchContactCard from '../components/ChurchContactCard';
 import Avatar from '../components/Avatar';
+import SectionHeader from '../components/SectionHeader';
 import {
   CHURCH_INFO,
   WEEKLY_EVENTS,
@@ -38,58 +39,19 @@ import { whatsappChurch } from '../services/contactService';
 import { GIVING_ENABLED } from './GiveScreen';
 import { activeAnnouncements, useChurchContent } from '../context/ContentContext';
 import { useAuth } from '../context/AuthContext';
-
-const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-const MONTHS = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-];
+import {
+  DAYS,
+  describeWhen,
+  formatClock,
+  formatLongDate,
+  formatToday,
+  greeting,
+  timeLeft,
+} from '../utils/format';
 
 // Mesmas chaves gravadas pelas abas Bíblia e Rádio.
 const BIBLE_LAST_KEY = 'bible:last';
 const RADIO_LAST_KEY = 'radio:last';
-
-function greeting(now: Date) {
-  const h = now.getHours();
-  if (h < 5) return 'Boa noite';
-  if (h < 12) return 'Bom dia';
-  if (h < 18) return 'Boa tarde';
-  return 'Boa noite';
-}
-
-function describeWhen(date: Date, now: Date): string {
-  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const days = Math.round((startOfDay(date) - startOfDay(now)) / 86400000);
-  if (days === 0) return `Hoje, às ${time}`;
-  if (days === 1) return `Amanhã, às ${time}`;
-  return `${DAYS_FULL[date.getDay()]}, às ${time}`;
-}
-
-/** "faltam 2 d 4 h", "faltam 3 h 10 min", "faltam 25 min". */
-function timeLeft(target: Date, now: Date): string {
-  const total = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 60000));
-  const d = Math.floor(total / 1440);
-  const h = Math.floor((total % 1440) / 60);
-  const m = total % 60;
-  if (d > 0) return `faltam ${d} d ${h} h`;
-  if (h > 0) return `faltam ${h} h ${m} min`;
-  return `faltam ${m} min`;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`;
-}
-
-function formatClock(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-}
 
 interface ContinueState {
   bible: { slug: string; chapter: number; name: string } | null;
@@ -176,7 +138,7 @@ export default function HomeScreen() {
                 {firstName ? `, ${firstName}` : ''} 👋
               </Text>
               <Text style={styles.today}>
-                {WEEKDAYS[now.getDay()]}, {now.getDate()} de {MONTHS[now.getMonth()]}
+                {formatToday(now)}
               </Text>
             </View>
           </View>
@@ -198,7 +160,7 @@ export default function HomeScreen() {
             <View>
               {WEEKLY_EVENTS.map((e) => (
                 <Text key={e.id} style={styles.scheduleText}>
-                  {DAYS_FULL[e.day]} {e.startTime.replace(':00', '')}h
+                  {DAYS[e.day]} {e.startTime.replace(':00', '')}h
                 </Text>
               ))}
             </View>
@@ -211,7 +173,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[styles.nextCard, styles.liveCard]}
           activeOpacity={0.85}
-          onPress={() => Linking.openURL(`${CHURCH_INFO.youtube}/live`)}
+          onPress={() => Linking.openURL(CHURCH_INFO.youtubeLive)}
         >
           <View style={styles.nextIcon}>
             <Ionicons name="radio-outline" size={24} color="#fff" />
@@ -247,7 +209,7 @@ export default function HomeScreen() {
 
       {announcements.length > 0 && (
         <>
-          <SectionTitle styles={styles} title="Avisos" />
+          <SectionHeader title="Avisos" />
           {announcements.map((a) => (
             <View key={a.id} style={styles.notice}>
               <View style={styles.noticeIcon}>
@@ -269,7 +231,7 @@ export default function HomeScreen() {
 
       {hasContinue && (
         <>
-          <SectionTitle styles={styles} title="Continue de onde parou" />
+          <SectionHeader title="Continue de onde parou" />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -362,7 +324,7 @@ export default function HomeScreen() {
         </>
       )}
 
-      <SectionTitle styles={styles} title="Participe" />
+      <SectionHeader title="Participe" />
       <View style={styles.participate}>
         <TouchableOpacity
           style={styles.participateCard}
@@ -390,7 +352,7 @@ export default function HomeScreen() {
         )}
       </View>
 
-      <SectionTitle styles={styles} title="Versículo do dia" />
+      <SectionHeader title="Versículo do dia" />
       <View style={styles.verseCard}>
         <Ionicons name="sparkles" size={20} color={colors.gold} style={styles.verseIcon} />
         <Text style={styles.verseText}>“{verse.text}”</Text>
@@ -413,8 +375,7 @@ export default function HomeScreen() {
 
       {latest && (
         <>
-          <SectionTitle
-            styles={styles}
+          <SectionHeader
             title="Última ministração"
             action="Ver todas"
             onAction={() => navigation.navigate('Pregações')}
@@ -433,13 +394,13 @@ export default function HomeScreen() {
               <Text style={styles.latestTitle} numberOfLines={2}>
                 {latest.title}
               </Text>
-              <Text style={styles.latestDate}>{formatDate(latest.publishedAt)}</Text>
+              <Text style={styles.latestDate}>{formatLongDate(latest.publishedAt)}</Text>
             </View>
           </TouchableOpacity>
         </>
       )}
 
-      <SectionTitle styles={styles} title="Visite-nos" />
+      <SectionHeader title="Visite-nos" />
       <View style={styles.padded}>
         <ChurchContactCard />
       </View>
@@ -462,30 +423,6 @@ export default function HomeScreen() {
       </View>
       <Text style={styles.footer}>Casa de Adoração · Reino de Sacerdotes · Trindade-GO</Text>
     </ScrollView>
-  );
-}
-
-function SectionTitle({
-  styles,
-  title,
-  action,
-  onAction,
-}: {
-  styles: ReturnType<typeof makeStyles>;
-  title: string;
-  action?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionBar} />
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {action && (
-        <TouchableOpacity onPress={onAction} hitSlop={8}>
-          <Text style={styles.sectionAction}>{action} ›</Text>
-        </TouchableOpacity>
-      )}
-    </View>
   );
 }
 
@@ -612,30 +549,6 @@ const makeStyles = (c: Palette) =>
       fontSize: SIZES.small,
       color: '#ffffffDD',
       marginTop: 1,
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginHorizontal: SIZES.padding,
-      marginTop: 26,
-      marginBottom: 10,
-    },
-    sectionBar: {
-      width: 3,
-      height: 18,
-      backgroundColor: c.primary,
-      marginRight: 8,
-    },
-    sectionTitle: {
-      ...FONTS.bold,
-      fontSize: SIZES.large,
-      color: c.text,
-      flex: 1,
-    },
-    sectionAction: {
-      ...FONTS.medium,
-      fontSize: SIZES.font,
-      color: c.primary,
     },
     carousel: {
       paddingHorizontal: SIZES.padding,

@@ -6,6 +6,32 @@ senha**, com confirmação por **código de 6 dígitos** enviado por e-mail — 
 no cadastro quanto no "esqueci minha senha". Sem links: tudo acontece dentro do
 app, e funciona no Expo Go.
 
+## Migrações (o banco em arquivos)
+
+Todo o SQL do projeto está em `supabase/migrations/`, em ordem. Os arquivos
+são **idempotentes**: rodar de novo não dá erro nem duplica nada.
+
+| Arquivo | Cria |
+|---|---|
+| `20260929000001_delete_own_account.sql` | função de excluir a própria conta |
+| `20260929000002_avatars_storage.sql` | bucket `avatars` + políticas |
+| `20260929000003_app_feedback.sql` | tabela de avaliações + políticas |
+| `20260929000004_app_errors.sql` | tabela de erros do app + limpeza de 90 dias |
+
+**Pelo painel:** SQL Editor › cole o conteúdo de cada arquivo, na ordem › Run.
+
+**Pela linha de comando** (aplica tudo e publica a função de uma vez):
+
+```bash
+npx supabase login
+npx supabase link --project-ref ufiebjhckkmdyrfnbxka
+npx supabase db push
+npx supabase functions deploy send-feedback
+```
+
+As seções abaixo repetem o SQL de cada parte para explicar o que faz; em caso
+de diferença, vale o arquivo em `supabase/migrations/`.
+
 ## 1. Criar o projeto
 
 1. Crie uma conta em https://supabase.com e clique em **New project**.
@@ -44,7 +70,9 @@ Em **Authentication › Emails › Templates**, troque o corpo de dois modelos:
 ```
 
 Confira em **Authentication › Providers › Email** que **Confirm email** está
-ligado e que o tamanho do código (Email OTP Length) é **6**.
+ligado, que o tamanho do código (Email OTP Length) é **6** e que
+**Minimum password length** é **8** (o padrão, 6, é fraco demais). O app já
+pede 8 caracteres no cadastro e na troca de senha.
 
 ## 3. Excluir conta (exigência da Apple)
 
@@ -180,10 +208,23 @@ A função usa a porta 465 do Gmail: as Edge Functions bloqueiam 25 e 587.
 Se o e-mail falhar, a avaliação continua salva na tabela; o erro aparece em
 **Edge Functions › send-feedback › Logs**.
 
+## Erros do app (monitoramento)
+
+`src/services/errorReporter.ts` grava na tabela `app_errors` (migração 4):
+erros que derrubariam uma tela, erros de JavaScript não capturados, cota do
+YouTube esgotada, arquivo de avisos inválido, falhas ao enviar foto ou
+avaliação. Falta de internet **não** é registrada (é esperada).
+
+- Veja em **Table Editor › app_errors** (coluna `context` diz de onde veio).
+- Cada aparelho registra no máximo 20 erros por abertura, sem repetir o mesmo.
+- O app só grava; ninguém lê pela API.
+- Para limpar erros com mais de 90 dias: `select public.purge_old_app_errors();`
+  no SQL Editor, ou agende em **Integrations › Cron**.
+
 ## Tabelas e políticas (RLS)
 
-O app usa o Auth, o Storage (fotos) e a tabela `app_feedback` (avaliações),
-todos com as políticas acima. Quando algo for guardado no banco (pedidos de oração, inscrições…),
+O app usa o Auth, o Storage (fotos) e as tabelas `app_feedback` (avaliações)
+e `app_errors` (erros), todos com RLS ligado e as políticas das migrações. Quando algo for guardado no banco (pedidos de oração, inscrições…),
 toda tabela nova precisa de **Row Level Security ligada** e de políticas que
 limitem cada usuário às próprias linhas — sem isso, a chave pública do app lê
 a tabela inteira.

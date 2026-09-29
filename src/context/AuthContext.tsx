@@ -41,6 +41,13 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
+/**
+ * Mínimo de caracteres da senha. Deve bater com Supabase › Authentication ›
+ * Providers › Email › Minimum password length (docs/SUPABASE.md). Senhas
+ * antigas mais curtas continuam entrando: vale para criar e trocar.
+ */
+export const MIN_PASSWORD_LENGTH = 8;
+
 // O que é de cada pessoa e fica no aparelho: sai junto com a conta, para quem
 // entrar depois no mesmo celular não ver o "continue de onde parou" do outro.
 // Preferências do aparelho (tema, letra, notificações) e o cache de conteúdo
@@ -66,7 +73,7 @@ export function authErrorMessage(error: unknown): string {
   if (msg.includes('already registered') || msg.includes('already been registered'))
     return 'Este e-mail já tem conta. Tente entrar.';
   if (msg.includes('password should be') || msg.includes('weak password'))
-    return 'A senha precisa ter pelo menos 6 caracteres.';
+    return `A senha precisa ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`;
   if (msg.includes('expired') || (msg.includes('invalid') && msg.includes('token')))
     return 'Código inválido ou expirado. Peça um novo.';
   if (msg.includes('rate limit') || msg.includes('too many'))

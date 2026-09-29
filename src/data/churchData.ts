@@ -23,6 +23,10 @@ export const CHURCH_INFO = {
   phoneE164: '5562983433231',
   instagram: 'https://www.instagram.com/casadeadoracaooficial/',
   youtube: 'https://www.youtube.com/@casadeadoracaoofficial',
+  /** Transmissão ao vivo do canal (ou o canal, se não houver live agora). */
+  youtubeLive: 'https://www.youtube.com/@casadeadoracaoofficial/live',
+  /** A App Store exige um link público; o GitHub exibe o arquivo formatado. */
+  privacyPolicy: 'https://github.com/victinjr199xs-cyber/igreja-app/blob/main/PRIVACIDADE.md',
   /**
    * Dízimos e ofertas. Enquanto a chave estiver vazia, a tela de ofertas fica
    * escondida. Titular e cidade aparecem no app do banco ao pagar e precisam
@@ -86,10 +90,18 @@ export function setRemoteSpecialEvents(list: SpecialEvent[]) {
   remoteSpecialEvents = list;
 }
 
-/** Eventos especiais do código + os do arquivo online, sem repetir id. */
+/**
+ * Eventos especiais do código + os do arquivo online, sem repetir id (vale o
+ * primeiro: o do código ganha do online, e um id duplicado no arquivo — erro
+ * de digitação de quem editou — aparece uma vez só).
+ */
 export function allSpecialEvents(): SpecialEvent[] {
-  const ids = new Set(SPECIAL_EVENTS.map((e) => e.id));
-  return [...SPECIAL_EVENTS, ...remoteSpecialEvents.filter((e) => !ids.has(e.id))];
+  const seen = new Set<string>();
+  return [...SPECIAL_EVENTS, ...remoteSpecialEvents].filter((e) => {
+    if (seen.has(e.id)) return false;
+    seen.add(e.id);
+    return true;
+  });
 }
 
 export interface Occurrence {

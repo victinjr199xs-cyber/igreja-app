@@ -14,9 +14,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SIZES, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
-import { authErrorMessage, useAuth } from '../context/AuthContext';
+import { MIN_PASSWORD_LENGTH, authErrorMessage, useAuth } from '../context/AuthContext';
 import { useAvatarPicker } from '../hooks/useAvatarPicker';
 import Avatar from '../components/Avatar';
+import { reportError } from '../services/errorReporter';
 
 export default function ProfileScreen() {
   const { styles, colors } = useThemedStyles(makeStyles);
@@ -33,7 +34,7 @@ export default function ProfileScreen() {
   useEffect(() => setName(displayName), [displayName]);
 
   const nameChanged = name.trim().length > 1 && name.trim() !== displayName.trim();
-  const passwordOk = password.length >= 6 && password === confirm;
+  const passwordOk = password.length >= MIN_PASSWORD_LENGTH && password === confirm;
 
   const saveName = async () => {
     setSavingName(true);
@@ -80,6 +81,7 @@ export default function ProfileScreen() {
             try {
               await deleteAccount();
             } catch (e) {
+              reportError('delete-account', e);
               Alert.alert('Não foi possível excluir', authErrorMessage(e));
             }
           },
@@ -153,7 +155,7 @@ export default function ProfileScreen() {
                 style={styles.field}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Nova senha (mín. 6 caracteres)"
+                placeholder={`Nova senha (mín. ${MIN_PASSWORD_LENGTH} caracteres)`}
                 placeholderTextColor={colors.gray}
                 secureTextEntry
                 textContentType="newPassword"

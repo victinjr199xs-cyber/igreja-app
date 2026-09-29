@@ -20,13 +20,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FONTS, SIZES, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
-import { authErrorMessage, useAuth } from '../context/AuthContext';
+import { MIN_PASSWORD_LENGTH, authErrorMessage, useAuth } from '../context/AuthContext';
 import ChurchLogo from '../components/ChurchLogo';
+import { CHURCH_INFO } from '../data/churchData';
 
 const { width: W, height: H } = Dimensions.get('window');
-
-const PRIVACY_URL =
-  'https://github.com/victinjr199xs-cyber/igreja-app/blob/main/PRIVACIDADE.md';
 
 // Frases que se alternam sob a logo.
 const VERSES = [
@@ -241,12 +239,12 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
     (mode === 'login'
       ? validEmail && password.length > 0
       : mode === 'signup'
-        ? name.trim().length > 1 && validEmail && password.length >= 6
+        ? name.trim().length > 1 && validEmail && password.length >= MIN_PASSWORD_LENGTH
         : mode === 'verify'
           ? code.length === 6
           : mode === 'forgot'
             ? validEmail
-            : code.length === 6 && password.length >= 6);
+            : code.length === 6 && password.length >= MIN_PASSWORD_LENGTH);
 
   const TITLES: Record<Mode, { title: string; subtitle: string; button: string }> = {
     login: { title: 'Que bom te ver!', subtitle: 'Entre para acessar cultos, rádio e a Palavra.', button: 'Entrar' },
@@ -378,7 +376,13 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
             {(mode === 'login' || mode === 'signup' || mode === 'reset') && (
               <Field
                 icon="lock-closed-outline"
-                placeholder={mode === 'reset' ? 'Nova senha (mín. 6 caracteres)' : mode === 'signup' ? 'Senha (mín. 6 caracteres)' : 'Senha'}
+                placeholder={
+                  mode === 'reset'
+                    ? `Nova senha (mín. ${MIN_PASSWORD_LENGTH} caracteres)`
+                    : mode === 'signup'
+                      ? `Senha (mín. ${MIN_PASSWORD_LENGTH} caracteres)`
+                      : 'Senha'
+                }
                 value={password}
                 onChangeText={setPassword}
                 secure
@@ -448,7 +452,7 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
 
             <Text style={styles.legal}>
               Ao continuar, você concorda com a{' '}
-              <Text style={styles.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>
+              <Text style={styles.legalLink} onPress={() => Linking.openURL(CHURCH_INFO.privacyPolicy)}>
                 Política de Privacidade
               </Text>
               .

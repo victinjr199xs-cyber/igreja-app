@@ -18,6 +18,7 @@ import { FONTS, SIZES, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { LIKED_OPTIONS, feedbackErrorMessage, sendFeedback } from '../services/feedbackService';
+import { reportError } from '../services/errorReporter';
 
 const LABELS = ['Toque nas estrelas', 'Muito ruim 😞', 'Ruim 😕', 'Regular 😐', 'Bom 🙂', 'Excelente! 🤩'];
 
@@ -69,6 +70,9 @@ export default function FeedbackScreen() {
       setSent(true);
       Animated.spring(thanks, { toValue: 1, friction: 5, useNativeDriver: true }).start();
     } catch (e) {
+      const msg = String((e as Error)?.message ?? '');
+      // "Aguarde um minuto" e sessão expirada são esperados; o resto é defeito.
+      if (!['too_many', 'not_authenticated'].includes(msg)) reportError('feedback', e);
       setError(feedbackErrorMessage(e));
     } finally {
       setSending(false);

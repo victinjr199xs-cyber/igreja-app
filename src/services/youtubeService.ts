@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { reportError } from './errorReporter';
 
 const API = 'https://www.googleapis.com/youtube/v3';
 const CHANNEL_ID = 'UCp8El__iNcoGDlD4Lt9h-hg';
@@ -53,7 +54,7 @@ const pickThumbnail = (t?: Thumbnails) => (t?.medium ?? t?.high ?? t?.default)?.
  * vêm como "P0D" -> 0. Os dias ficam antes do "T", então não dá para procurar
  * só por "PT".
  */
-function parseDuration(iso: string): number {
+export function parseDuration(iso: string): number {
   const m = iso.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/);
   if (!m) return 0;
   return (
@@ -97,7 +98,13 @@ async function get<T>(path: string, params: Record<string, string>): Promise<T> 
   // Proxy ou portal de Wi-Fi podem responder HTML: não dá para supor JSON.
   const body = await res.json().catch(() => null);
   if (!res.ok || !body) {
-    throw new Error(body?.error?.message ?? `YouTube API respondeu ${res.status}`);
+    const error = new Error(body?.error?.message ?? `YouTube API respondeu ${res.status}`);
+    // Cota esgotada, chave recusada, parâmetro inválido: é problema nosso, não
+    // da rede de quem está usando.
+    if (res.status >= 400) {
+      reportError('youtube-api', error, { status: res.status, path, reason: body?.error?.errors?.[0]?.reason });
+    }
+    throw error;
   }
   return body as T;
 }

@@ -3,6 +3,7 @@ import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DARK, LIGHT, Palette } from '../constants/theme';
 import { scheduleNotifications } from '../services/notificationService';
+import { reportError } from '../services/errorReporter';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -68,7 +69,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loaded) return;
     scheduleNotifications({ notifyDailyVerse, notifyReading, notifyServices }).catch((e) =>
-      console.warn('Agendamento de notificações falhou:', e)
+      reportError('notifications-schedule', e)
     );
   }, [loaded, notifyDailyVerse, notifyReading, notifyServices]);
 

@@ -12,13 +12,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import nodemailer from 'npm:nodemailer@6';
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
+// Sem cabeçalhos CORS de propósito: quem chama é o app (iOS/Android), que não
+// passa por CORS. Assim nenhum site consegue usar a função pelo navegador de
+// alguém logado. Se um dia houver versão web, libere só o domínio dela aqui.
 const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 const LIKED_OPTIONS = new Set([
   'Pregações',
@@ -36,12 +34,18 @@ const escape = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
   // Cliente com o token de quem chamou: o insert passa pelo RLS como esse
   // usuário, e ninguém consegue avaliar em nome de outro.
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+  // Projetos antigos expõem SUPABASE_ANON_KEY; os de chaves novas podem expor
+  // só a publishable. Qualquer uma serve: quem autentica é o token do usuário.
+  const publicKey = Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
+  if (!publicKey) {
+    console.error('Nem SUPABASE_ANON_KEY nem SUPABASE_PUBLISHABLE_KEY disponíveis na função.');
+    return json(500, { error: 'misconfigured' });
+  }
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, publicKey, {
     global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
   });
   const {

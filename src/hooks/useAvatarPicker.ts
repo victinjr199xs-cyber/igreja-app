@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ActionSheetIOS, Alert, Platform } from 'react-native';
 import { authErrorMessage, useAuth } from '../context/AuthContext';
-import { AvatarSource } from '../services/avatarService';
+import { AvatarSource, PermissionDeniedError } from '../services/avatarService';
+import { reportError } from '../services/errorReporter';
 
 /**
  * Menu "Tirar foto / Escolher da galeria / Remover foto" e o envio, com
@@ -17,6 +18,7 @@ export function useAvatarPicker(onChanged?: () => void) {
       const changed = await fn();
       if (changed !== false) onChanged?.();
     } catch (e) {
+      if (!(e instanceof PermissionDeniedError)) reportError('avatar', e);
       Alert.alert('Não foi possível atualizar a foto', authErrorMessage(e));
     } finally {
       setBusy(false);

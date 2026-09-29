@@ -6,6 +6,7 @@ import { SIZES, FONTS, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
 import ChurchContactCard from '../components/ChurchContactCard';
+import SectionHeader from '../components/SectionHeader';
 import {
   CHURCH_INFO,
   WEEKLY_EVENTS,
@@ -20,44 +21,24 @@ import {
 import { openChurchMap } from '../services/contactService';
 import { useChurchContent } from '../context/ContentContext';
 import { addToPhoneCalendar, shareInvite } from '../services/agendaService';
+import {
+  DAYS,
+  DAYS_SHORT,
+  MONTHS,
+  MONTHS_SHORT,
+  countdown,
+  describeDay,
+  parseDateKey,
+} from '../utils/format';
 
 LocaleConfig.locales['pt-br'] = {
-  monthNames: [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-  ],
-  monthNamesShort: ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'],
-  dayNames: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
+  monthNames: MONTHS.map((m) => m[0].toUpperCase() + m.slice(1)),
+  monthNamesShort: MONTHS_SHORT,
+  dayNames: DAYS,
   dayNamesShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
   today: 'Hoje',
 };
 LocaleConfig.defaultLocale = 'pt-br';
-
-const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-const DAYS_SHORT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
-const MONTHS = LocaleConfig.locales['pt-br'].monthNames as string[];
-
-const LIVE_URL = `${CHURCH_INFO.youtube}/live`;
-
-function describeDay(date: Date, now: Date): string {
-  const start = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const days = Math.round((start(date) - start(now)) / 86400000);
-  const label = `${date.getDate()} de ${MONTHS[date.getMonth()].toLowerCase()}`;
-  if (days === 0) return `Hoje · ${label}`;
-  if (days === 1) return `Amanhã · ${label}`;
-  return `${DAYS_FULL[date.getDay()]} · ${label}`;
-}
-
-/** Dias, horas e minutos até a data (nunca negativo). */
-function countdown(target: Date, now: Date) {
-  const total = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 60000));
-  return { d: Math.floor(total / 1440), h: Math.floor((total % 1440) / 60), m: total % 60 };
-}
-
-const parseKey = (key: string) => {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
 
 export default function CalendarScreen() {
   const { styles, colors, isDark } = useThemedStyles(makeStyles);
@@ -95,10 +76,10 @@ export default function CalendarScreen() {
     return marks;
   }, [visibleMonth, selected, colors, content]);
 
-  const selectedDate = parseKey(selected);
+  const selectedDate = parseDateKey(selected);
   const selectedEvents = eventsOn(selectedDate);
 
-  const upcomingSpecials = allSpecialEvents().filter((e) => parseKey(e.date) >= parseKey(dateKey(now)))
+  const upcomingSpecials = allSpecialEvents().filter((e) => parseDateKey(e.date) >= parseDateKey(dateKey(now)))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 5);
 
@@ -139,7 +120,7 @@ export default function CalendarScreen() {
             </View>
             <Text style={styles.heroTitle}>{live.title}</Text>
             <Text style={styles.heroWhen}>Começou às {live.startTime}</Text>
-            <TouchableOpacity style={styles.heroButton} onPress={() => Linking.openURL(LIVE_URL)}>
+            <TouchableOpacity style={styles.heroButton} onPress={() => Linking.openURL(CHURCH_INFO.youtubeLive)}>
               <Ionicons name="logo-youtube" size={18} color="#C62828" />
               <Text style={[styles.heroButtonText, { color: '#C62828' }]}>Assistir ao vivo</Text>
             </TouchableOpacity>
@@ -184,10 +165,7 @@ export default function CalendarScreen() {
           ))}
         </View>
 
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionBar} />
-          <Text style={styles.sectionTitle}>Cultos semanais</Text>
-        </View>
+        <SectionHeader title="Cultos semanais" inset={0} />
         {WEEKLY_EVENTS.slice()
           .sort((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7))
           .map((event) => (
@@ -199,7 +177,7 @@ export default function CalendarScreen() {
               <View style={styles.weeklyInfo}>
                 <Text style={styles.weeklyTitle}>{event.title}</Text>
                 <Text style={styles.weeklyDesc}>{event.description}</Text>
-                <Text style={styles.weeklyMeta}>Toda {DAYS_FULL[event.day].toLowerCase()} · {event.location}</Text>
+                <Text style={styles.weeklyMeta}>Toda {DAYS[event.day].toLowerCase()} · {event.location}</Text>
               </View>
               <TouchableOpacity
                 style={styles.weeklyAdd}
@@ -213,24 +191,21 @@ export default function CalendarScreen() {
 
         {upcomingSpecials.length > 0 && (
           <>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionBar, { backgroundColor: colors.gold }]} />
-              <Text style={styles.sectionTitle}>Eventos especiais</Text>
-            </View>
+            <SectionHeader title="Eventos especiais" accent={colors.gold} inset={0} />
             {upcomingSpecials.map((e) => {
-              const d = parseKey(e.date);
+              const d = parseDateKey(e.date);
               return (
                 <TouchableOpacity key={e.id} style={styles.special} onPress={() => setSelected(e.date)}>
                   <View style={styles.specialDate}>
                     <Text style={styles.specialDay}>{d.getDate()}</Text>
                     <Text style={styles.specialMonth}>
-                      {(LocaleConfig.locales['pt-br'].monthNamesShort as string[])[d.getMonth()].toUpperCase()}
+                      {MONTHS_SHORT[d.getMonth()].toUpperCase()}
                     </Text>
                   </View>
                   <View style={styles.weeklyInfo}>
                     <Text style={styles.weeklyTitle}>{e.title}</Text>
                     <Text style={styles.weeklyMeta}>
-                      {DAYS_FULL[d.getDay()]} · {e.startTime} · {e.location}
+                      {DAYS[d.getDay()]} · {e.startTime} · {e.location}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -239,10 +214,7 @@ export default function CalendarScreen() {
           </>
         )}
 
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionBar} />
-          <Text style={styles.sectionTitle}>Calendário</Text>
-        </View>
+        <SectionHeader title="Calendário" inset={0} />
         <View style={styles.calendarCard}>
           <Calendar
             // Remonta ao trocar o tema: o componente guarda os estilos internamente.
@@ -289,10 +261,7 @@ export default function CalendarScreen() {
           </View>
         )}
 
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionBar} />
-          <Text style={styles.sectionTitle}>Visite-nos</Text>
-        </View>
+        <SectionHeader title="Visite-nos" inset={0} />
         <ChurchContactCard />
       </ScrollView>
     </View>
@@ -410,23 +379,6 @@ const makeStyles = (c: Palette) =>
       fontSize: SIZES.small,
       color: c.text,
       marginTop: 6,
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 24,
-      marginBottom: 10,
-    },
-    sectionBar: {
-      width: 3,
-      height: 18,
-      backgroundColor: c.primary,
-      marginRight: 8,
-    },
-    sectionTitle: {
-      ...FONTS.bold,
-      fontSize: SIZES.large,
-      color: c.text,
     },
     weekly: {
       flexDirection: 'row',

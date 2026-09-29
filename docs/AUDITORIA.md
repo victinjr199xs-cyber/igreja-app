@@ -22,7 +22,29 @@ Supabase de produção usando só a chave pública (como um atacante faria).
 - Sem `console.log`, `@ts-ignore`, `eslint-disable` ou TODO esquecidos.
 - Licenças: 97% permissivas; os dois pacotes com GPL têm licença dupla (MIT/BSD). Fontes Fira: OFL, pode embutir.
 
-## Pendências (por prioridade)
+## Segunda rodada — 30/09/2026: correções
+
+| Pendência | Situação |
+|---|---|
+| 4. Zero testes | **Resolvido**: Jest (`jest-expo`), 64 testes em 6 arquivos — datas, programação, eventos especiais, Pix (inclusive o exemplo oficial do Banco Central), conteúdo online, histórico do YouTube, Bíblia e os 484 versículos. `npm test` |
+| 5. SQL só na documentação | **Resolvido**: `supabase/migrations/`, 4 arquivos idempotentes |
+| 6. Sem monitoramento de erros | **Resolvido** sem terceiros: tabela `app_errors` + `errorReporter` (tela quebrada, erro global, cota do YouTube, JSON de avisos inválido, foto, avaliação) |
+| 8. Código duplicado | **Resolvido**: `src/utils/format.ts`, `SectionHeader` compartilhado, links só em `CHURCH_INFO` |
+| 9. Arquivos grandes | **Reduzido**: Pregações 1276 → 935 linhas (`VideoRow`, `VideoPlayerModal` extraídos), Início 891 → ~800, Programação 591 → ~540 |
+| 10. Erros silenciados | **Resolvido** onde importa: vão para `app_errors`; os que restam são cache/best-effort, comentados |
+| 12. CORS `*` na função | **Resolvido**: sem cabeçalhos CORS (só o app chama) |
+| `any` no conteúdo online | **Resolvido**: `unknown` + validação em `contentParser.ts`; links só `https` |
+| Senha mínima 6 | **App pronto** (pede 8); falta ajustar no painel do Supabase |
+| Token de push falhando no Android | **Resolvido**: desligado até existir push remoto |
+
+Encontrado e corrigido pelos testes: evento especial com id duplicado no
+arquivo online aparecia duas vezes no calendário.
+
+Ainda dependem de acesso às contas (não há como fazer pelo código):
+itens 1, 2 e 3 abaixo, e aplicar as migrações 3 e 4. Item 7 (backups) segue
+aceito no plano gratuito. Item 11 (`npm audit`) segue aguardando o Expo.
+
+## Pendências da primeira rodada (por prioridade)
 
 ### Alta — resolver antes de ampliar a distribuição
 
