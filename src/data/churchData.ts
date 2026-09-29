@@ -23,6 +23,16 @@ export const CHURCH_INFO = {
   phoneE164: '5562983433231',
   instagram: 'https://www.instagram.com/casadeadoracaooficial/',
   youtube: 'https://www.youtube.com/@casadeadoracaoofficial',
+  /**
+   * Dízimos e ofertas. Enquanto a chave estiver vazia, a tela de ofertas fica
+   * escondida. Titular e cidade aparecem no app do banco ao pagar e precisam
+   * bater com o cadastro da chave.
+   */
+  pix: {
+    key: '',
+    holder: 'Casa de Adoração',
+    city: 'Trindade',
+  },
 };
 
 export const CHURCH_ADDRESS = `${CHURCH_INFO.street} - ${CHURCH_INFO.district}, ${CHURCH_INFO.city}, ${CHURCH_INFO.zip}`;

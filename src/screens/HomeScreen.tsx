@@ -34,6 +34,7 @@ import { verseOfDay } from '../data/dailyVerses';
 import { RADIO_STATIONS, RadioStation } from '../data/radioStations';
 import { fetchCultos, inProgress, loadHistory, HistoryEntry, Video } from '../services/youtubeService';
 import { whatsappChurch } from '../services/contactService';
+import { GIVING_ENABLED } from './GiveScreen';
 
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
@@ -322,6 +323,34 @@ export default function HomeScreen() {
           </ScrollView>
         </>
       )}
+
+      <SectionTitle styles={styles} title="Participe" />
+      <View style={styles.participate}>
+        <TouchableOpacity
+          style={styles.participateCard}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('Pedido de oração')}
+        >
+          <View style={styles.participateIcon}>
+            <Ionicons name="heart" size={22} color={colors.white} />
+          </View>
+          <Text style={styles.participateTitle}>Pedido de oração</Text>
+          <Text style={styles.participateText}>Vamos orar por você</Text>
+        </TouchableOpacity>
+        {GIVING_ENABLED && (
+          <TouchableOpacity
+            style={styles.participateCard}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Dízimos e ofertas')}
+          >
+            <View style={[styles.participateIcon, { backgroundColor: colors.gold }]}>
+              <Ionicons name="gift" size={22} color={colors.white} />
+            </View>
+            <Text style={styles.participateTitle}>Dízimos e ofertas</Text>
+            <Text style={styles.participateText}>Contribua via Pix</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <SectionTitle styles={styles} title="Versículo do dia" />
       <View style={styles.verseCard}>
@@ -633,6 +662,39 @@ const makeStyles = (c: Palette) =>
     contMeta: {
       ...FONTS.regular,
       fontSize: 11,
+      color: c.textLight,
+      marginTop: 2,
+    },
+    participate: {
+      flexDirection: 'row',
+      gap: 12,
+      marginHorizontal: SIZES.padding,
+    },
+    participateCard: {
+      flex: 1,
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius + 4,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    participateIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: c.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    participateTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.medium,
+      color: c.text,
+      marginTop: 10,
+    },
+    participateText: {
+      ...FONTS.regular,
+      fontSize: SIZES.small,
       color: c.textLight,
       marginTop: 2,
     },
