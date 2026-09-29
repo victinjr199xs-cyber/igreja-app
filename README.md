@@ -74,6 +74,7 @@ sozinho, então não há `unload` manual.
 
 | Rádio | Stream |
 |---|---|
+| Vinha FM 91.9 (Goiânia) | Icecast/Shoutcast, MP3 |
 | Melodia FM 97.5 (RJ) | StreamTheWorld, AAC — via redirect que escolhe o servidor |
 | Novo Tempo | HLS (`.m3u8`) |
 | Rádio Super 100.5 (BH) | Shoutcast, MP3 |

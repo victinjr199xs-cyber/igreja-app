@@ -18,6 +18,13 @@ import { COLORS, SIZES } from '../constants/theme';
 // puro). Novo Tempo é HLS (.m3u8), que o expo-audio toca nas duas plataformas.
 const RADIO_STATIONS = [
   {
+    id: 'vinha',
+    name: 'Vinha FM',
+    description: '91.9 FM · Goiânia',
+    url: 'https://streaming.vinhafm.com.br/stream',
+    icon: 'leaf',
+  },
+  {
     id: 'melodia',
     name: 'Melodia FM',
     description: '97.5 FM · Rio de Janeiro',
