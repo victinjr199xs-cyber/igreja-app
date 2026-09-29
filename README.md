@@ -70,6 +70,23 @@ pacote `expo-av`, usado até então, foi removido no SDK 54 e não funciona mais
 O player de áudio é recriado a cada troca de estação — o hook libera o anterior
 sozinho, então não há `unload` manual.
 
+### Estações
+
+| Rádio | Stream |
+|---|---|
+| Melodia FM 97.5 (RJ) | StreamTheWorld, AAC — via redirect que escolhe o servidor |
+| Novo Tempo | HLS (`.m3u8`) |
+| Rádio Super 100.5 (BH) | Shoutcast, MP3 |
+
+São rádios de terceiros, tocadas pelo stream público oficial de cada uma. Todas
+em HTTPS, que iOS e Android exigem. Antes de publicar na loja, vale pedir
+autorização por escrito às emissoras. Para trocar ou adicionar, edite
+`RADIO_STATIONS` em `RadioScreen`; o diretório
+[Radio Browser](https://www.radio-browser.info) ajuda a achar os links.
+
+Rádio ao vivo não tem duração, então a tela não mostra barra de progresso. Os
+botões ⏮ ⏭ trocam de estação.
+
 ## Pregações
 
 A aba lê o canal [Casa de Adoração Official](https://www.youtube.com/@casadeadoracaoofficial)
@@ -184,18 +201,11 @@ as mensagens para o token.
 ## Estado dos dados
 
 Os eventos e versículos em `src/data/churchData.ts` são de demonstração e
-precisam ser substituídos por dados reais da igreja. Um ponto afeta o
-funcionamento hoje:
-
-- **Estações de rádio** — as três URLs em `RadioScreen` são placeholders e
-  respondem `403`. A tela funciona, mas não há áudio até apontarem para um
-  stream real.
-
-A playlist exibida na tela de Rádio é decorativa: as faixas não têm URL própria,
-e tocá-las inicia a estação selecionada.
+precisam ser substituídos por dados reais da igreja.
 
 O texto bíblico **não** é dado de demonstração: é a Bíblia Livre completa, e
 está pronta para uso. As pregações também não: vêm ao vivo do canal da igreja.
+As rádios tocam os streams reais das emissoras.
 
 ## Licença
 

@@ -7,59 +7,62 @@ import {
   StatusBar,
   SafeAreaView,
   Animated,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 
+// Streams oficiais das emissoras, todos em HTTPS (iOS e Android bloqueiam HTTP
+// puro). Novo Tempo é HLS (.m3u8), que o expo-audio toca nas duas plataformas.
 const RADIO_STATIONS = [
   {
-    id: '1',
-    name: 'Rádio Gospel FM',
-    description: 'Música gospel 24 horas',
-    url: 'https://streaming.radio.co/s2f5e3f0e5/listen',
+    id: 'melodia',
+    name: 'Melodia FM',
+    description: '97.5 FM · Rio de Janeiro',
+    // O redirect do StreamTheWorld escolhe um servidor disponível a cada conexão.
+    url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/MELODIAFMAAC.aac',
     icon: 'musical-notes',
   },
   {
-    id: '2',
-    name: 'Rádio Cruz',
-    description: 'Palavra e adoração',
-    url: 'https://streaming.radio.co/s3a4d5e6f7/listen',
+    id: 'novotempo',
+    name: 'Novo Tempo',
+    description: 'Rede Novo Tempo de Rádio',
+    url: 'https://streamradio.novotempo.com/CDN-RADIO-PT/smil:radionovotempo.smil/playlist.m3u8',
     icon: 'heart',
   },
   {
-    id: '3',
-    name: 'Rádio Vida',
-    description: 'Músicas de louvor',
-    url: 'https://streaming.radio.co/s4b5c6d7e8/listen',
+    id: 'super',
+    name: 'Rádio Super',
+    description: '100.5 FM · Belo Horizonte',
+    url: 'https://servidor32.brlogic.com:8200/live',
     icon: 'sunny',
   },
 ];
 
-const PLAYLIST = [
-  { id: '1', title: 'Amazing Grace', artist: 'Chris Tomlin', duration: '5:32' },
-  { id: '2', title: 'How Great Is Our God', artist: 'Chris Tomlin', duration: '4:26' },
-  { id: '3', title: 'Reckless Love', artist: 'Cory Asbury', duration: '5:34' },
-  { id: '4', title: 'Good Good Father', artist: 'Chris Tomlin', duration: '4:43' },
-  { id: '5', title: 'Oceans', artist: 'Hillsong United', duration: '8:56' },
-  { id: '6', title: 'What A Beautiful Name', artist: 'Hillsong Worship', duration: '5:42' },
-  { id: '7', title: 'Chain Breaker', artist: 'Zach Williams', duration: '3:51' },
-  { id: '8', title: 'Who You Say I Am', artist: 'Hillsong Worship', duration: '4:41' },
-];
+type Station = (typeof RADIO_STATIONS)[number];
 
 export default function RadioScreen() {
-  const [currentTrack, setCurrentTrack] = useState(PLAYLIST[0]);
-  const [selectedStation, setSelectedStation] = useState(RADIO_STATIONS[0]);
+  const [selectedStation, setSelectedStation] = useState<Station>(RADIO_STATIONS[0]);
+  // Intenção do usuário, separada de status.playing: ao trocar de estação o
+  // player novo nasce parado e precisa saber se deve começar a tocar.
+  const [wantsToPlay, setWantsToPlay] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // O player é recriado (e o anterior liberado) sempre que a estação muda.
   const player = useAudioPlayer(selectedStation.url);
   const status = useAudioPlayerStatus(player);
   const isPlaying = status.playing;
+  const isConnecting = wantsToPlay && !isPlaying;
 
   useEffect(() => {
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (wantsToPlay) player.play();
+  }, [player]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -83,17 +86,31 @@ export default function RadioScreen() {
   }, [isPlaying]);
 
   const togglePlayback = () => {
-    if (isPlaying) {
+    if (wantsToPlay) {
+      setWantsToPlay(false);
       player.pause();
     } else {
+      setWantsToPlay(true);
       player.play();
     }
   };
 
-  const playTrack = (track: typeof PLAYLIST[0]) => {
-    setCurrentTrack(track);
-    player.play();
+  const playStation = (station: Station) => {
+    setWantsToPlay(true);
+    if (station.id === selectedStation.id) {
+      player.play();
+    } else {
+      setSelectedStation(station);
+    }
   };
+
+  const skipStation = (step: 1 | -1) => {
+    const index = RADIO_STATIONS.findIndex((s) => s.id === selectedStation.id);
+    const next = RADIO_STATIONS[(index + step + RADIO_STATIONS.length) % RADIO_STATIONS.length];
+    setSelectedStation(next);
+  };
+
+  const liveLabel = isPlaying ? 'AO VIVO' : isConnecting ? 'CONECTANDO…' : 'PAUSADO';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -117,121 +134,69 @@ export default function RadioScreen() {
           </Animated.View>
           <View style={[styles.liveIndicator, isPlaying && styles.liveIndicatorActive]}>
             <View style={[styles.liveDot, isPlaying && styles.liveDotActive]} />
-            <Text style={styles.liveText}>{isPlaying ? 'AO VIVO' : 'PAUSADO'}</Text>
+            <Text style={styles.liveText}>{liveLabel}</Text>
           </View>
         </View>
 
-        <Text style={styles.trackTitle}>{currentTrack.title}</Text>
-        <Text style={styles.trackArtist}>{currentTrack.artist}</Text>
+        <Text style={styles.trackTitle}>{selectedStation.name}</Text>
+        <Text style={styles.trackArtist}>{selectedStation.description}</Text>
 
         <View style={styles.controls}>
-          <TouchableOpacity style={styles.controlButton}>
+          <TouchableOpacity style={styles.controlButton} onPress={() => skipStation(-1)}>
             <Ionicons name="play-skip-back" size={28} color={COLORS.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.playButton} onPress={togglePlayback}>
-            <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
-              size={36}
-              color={COLORS.white}
-            />
+            {isConnecting ? (
+              <ActivityIndicator size="large" color={COLORS.white} />
+            ) : (
+              <Ionicons
+                name={isPlaying ? 'pause' : 'play'}
+                size={36}
+                color={COLORS.white}
+              />
+            )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton}>
+          <TouchableOpacity style={styles.controlButton} onPress={() => skipStation(1)}>
             <Ionicons name="play-skip-forward" size={28} color={COLORS.text} />
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.progressBar}>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: '35%' }]} />
-          </View>
-          <View style={styles.progressTime}>
-            <Text style={styles.timeText}>1:58</Text>
-            <Text style={styles.timeText}>{currentTrack.duration}</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.stationsSection}>
-        <Text style={styles.sectionTitle}>Estações</Text>
-        <View style={styles.stationsList}>
-          {RADIO_STATIONS.map((station) => (
-            <TouchableOpacity
-              key={station.id}
-              style={[
-                styles.stationCard,
-                selectedStation.id === station.id && styles.stationCardActive,
-              ]}
-              onPress={() => setSelectedStation(station)}
-            >
-              <Ionicons
-                name={station.icon as any}
-                size={24}
-                color={selectedStation.id === station.id ? COLORS.white : COLORS.primary}
-              />
-              <Text
-                style={[
-                  styles.stationName,
-                  selectedStation.id === station.id && styles.stationNameActive,
-                ]}
-                numberOfLines={1}
-              >
-                {station.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
         </View>
       </View>
 
       <View style={styles.playlistSection}>
-        <Text style={styles.sectionTitle}>Playlist</Text>
-        <Animated.ScrollView
-          style={styles.playlistList}
-          showsVerticalScrollIndicator={false}
-        >
-          {PLAYLIST.map((track) => (
-            <TouchableOpacity
-              key={track.id}
-              style={[
-                styles.playlistItem,
-                currentTrack.id === track.id && styles.playlistItemActive,
-              ]}
-              onPress={() => playTrack(track)}
-            >
-              <View style={styles.playlistItemLeft}>
-                <View style={[
-                  styles.playlistNumber,
-                  currentTrack.id === track.id && styles.playlistNumberActive,
-                ]}>
-                  {currentTrack.id === track.id && isPlaying ? (
-                    <Ionicons name="volume-high" size={14} color={COLORS.white} />
-                  ) : (
-                    <Text style={[
-                      styles.playlistNumberText,
-                      currentTrack.id === track.id && styles.playlistNumberTextActive,
-                    ]}>
-                      {PLAYLIST.indexOf(track) + 1}
+        <Text style={styles.sectionTitle}>Estações</Text>
+        <ScrollView style={styles.playlistList} showsVerticalScrollIndicator={false}>
+          {RADIO_STATIONS.map((station) => {
+            const active = selectedStation.id === station.id;
+            return (
+              <TouchableOpacity
+                key={station.id}
+                style={[styles.playlistItem, active && styles.playlistItemActive]}
+                onPress={() => playStation(station)}
+              >
+                <View style={styles.playlistItemLeft}>
+                  <View style={[styles.playlistNumber, active && styles.playlistNumberActive]}>
+                    <Ionicons
+                      name={(active && isPlaying ? 'volume-high' : station.icon) as any}
+                      size={16}
+                      color={active ? COLORS.white : COLORS.primary}
+                    />
+                  </View>
+                  <View style={styles.playlistItemInfo}>
+                    <Text
+                      style={[styles.playlistItemTitle, active && styles.playlistItemTitleActive]}
+                      numberOfLines={1}
+                    >
+                      {station.name}
                     </Text>
-                  )}
+                    <Text style={styles.playlistItemArtist} numberOfLines={1}>
+                      {station.description}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.playlistItemInfo}>
-                  <Text
-                    style={[
-                      styles.playlistItemTitle,
-                      currentTrack.id === track.id && styles.playlistItemTitleActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {track.title}
-                  </Text>
-                  <Text style={styles.playlistItemArtist} numberOfLines={1}>
-                    {track.artist}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.playlistItemDuration}>{track.duration}</Text>
-            </TouchableOpacity>
-          ))}
-        </Animated.ScrollView>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
@@ -351,71 +316,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
-  progressBar: {
-    width: '100%',
-    marginTop: 20,
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: COLORS.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 2,
-  },
-  progressTime: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  timeText: {
-    fontSize: SIZES.small,
-    color: COLORS.textLight,
-  },
-  stationsSection: {
-    padding: SIZES.padding,
-  },
   sectionTitle: {
     fontSize: SIZES.large,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 12,
   },
-  stationsList: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  stationCard: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: 16,
-    alignItems: 'center',
-    gap: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  stationCardActive: {
-    backgroundColor: COLORS.primary,
-  },
-  stationName: {
-    fontSize: SIZES.small,
-    fontWeight: '600',
-    color: COLORS.text,
-    textAlign: 'center',
-  },
-  stationNameActive: {
-    color: COLORS.white,
-  },
   playlistSection: {
     flex: 1,
-    paddingHorizontal: SIZES.padding,
+    padding: SIZES.padding,
   },
   playlistList: {
     flex: 1,
@@ -451,14 +360,6 @@ const styles = StyleSheet.create({
   playlistNumberActive: {
     backgroundColor: COLORS.primary,
   },
-  playlistNumberText: {
-    fontSize: SIZES.small,
-    fontWeight: '600',
-    color: COLORS.textLight,
-  },
-  playlistNumberTextActive: {
-    color: COLORS.white,
-  },
   playlistItemInfo: {
     flex: 1,
   },
@@ -474,10 +375,5 @@ const styles = StyleSheet.create({
     fontSize: SIZES.small,
     color: COLORS.textLight,
     marginTop: 2,
-  },
-  playlistItemDuration: {
-    fontSize: SIZES.small,
-    color: COLORS.textLight,
-    marginLeft: 12,
   },
 });
