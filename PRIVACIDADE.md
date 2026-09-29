@@ -1,6 +1,6 @@
 # Política de Privacidade — App Casa de Adoração
 
-_Última atualização: 29 de setembro de 2026_
+_Última atualização: 30 de setembro de 2026_
 
 Este aplicativo é da **Casa de Adoração — Reino de Sacerdotes** (R. João Alves
 da Silveira, St. Cristina II, Trindade - GO, 75389-275). Esta política explica
@@ -8,10 +8,23 @@ quais dados o app usa e para quê.
 
 ## Resumo
 
-- O app **não tem cadastro nem login** e **não coleta dados pessoais** em
-  servidores da igreja.
+- Para usar o app é preciso **criar uma conta** com nome, e-mail e senha.
 - **Não há anúncios** nem ferramentas de análise ou rastreamento.
-- O que o app guarda fica **só no seu celular**.
+- Fora os dados da conta, o que o app guarda fica **só no seu celular**.
+- Você pode **excluir sua conta** a qualquer momento, pelo próprio app.
+
+## Sua conta
+
+Ao criar a conta, guardamos **nome, e-mail e senha** (a senha é armazenada de
+forma criptografada; ninguém da igreja tem acesso a ela). Esses dados ficam no
+[Supabase](https://supabase.com/privacy), serviço de autenticação usado pelo
+app, e servem apenas para você entrar no app e recuperar a senha. O e-mail
+também é usado para enviar os códigos de confirmação e de redefinição de senha.
+
+Não vendemos nem compartilhamos seus dados com terceiros.
+
+Para excluir a conta: **Configurações › Conta › Excluir conta**. A exclusão é
+imediata e apaga seu nome, e-mail e senha.
 
 ## O que fica no seu celular
 
@@ -54,7 +67,8 @@ celular**. Você pode desligá-los em **Configurações › Notificações**.
 
 ## Crianças
 
-O app não coleta dados de ninguém, incluindo crianças.
+O app não se destina a menores de 13 anos sem o acompanhamento dos pais ou
+responsáveis, que podem pedir a exclusão de uma conta pelo contato abaixo.
 
 ## Contato
 

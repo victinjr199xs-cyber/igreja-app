@@ -36,6 +36,7 @@ import { fetchCultos, inProgress, loadHistory, HistoryEntry, Video } from '../se
 import { whatsappChurch } from '../services/contactService';
 import { GIVING_ENABLED } from './GiveScreen';
 import { activeAnnouncements, useChurchContent } from '../context/ContentContext';
+import { useAuth } from '../context/AuthContext';
 
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
@@ -106,6 +107,7 @@ export default function HomeScreen() {
   // Avisos e eventos editáveis (content/igreja.json); também faz a tela
   // redesenhar quando um evento especial online muda o "próximo culto".
   const content = useChurchContent();
+  const firstName = useAuth().displayName.trim().split(/\s+/)[0] ?? '';
   const announcements = activeAnnouncements(content.announcements, now);
 
   const live = getCurrentEvent(now);
@@ -165,7 +167,10 @@ export default function HomeScreen() {
       <View style={[styles.hero, { paddingTop: insets.top + 14 }]}>
         <View style={styles.heroTop}>
           <View>
-            <Text style={styles.greeting}>{greeting(now)} 👋</Text>
+            <Text style={styles.greeting}>
+              {greeting(now)}
+              {firstName ? `, ${firstName}` : ''} 👋
+            </Text>
             <Text style={styles.today}>
               {WEEKDAYS[now.getDay()]}, {now.getDate()} de {MONTHS[now.getMonth()]}
             </Text>

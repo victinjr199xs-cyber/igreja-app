@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,6 +13,9 @@ import { FiraMono_400Regular } from '@expo-google-fonts/fira-mono/400Regular';
 import AppNavigator from './src/navigation/AppNavigator';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ContentProvider } from './src/context/ContentContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { SUPABASE_CONFIGURED } from './src/services/supabase';
+import AuthScreen from './src/screens/AuthScreen';
 import { registerForPushNotificationsAsync } from './src/services/notificationService';
 
 // Segura a splash até as fontes e as preferências carregarem: sem isso a logo
@@ -21,6 +24,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function Root() {
   const { loaded, isDark } = useSettings();
+  const { session, loading: authLoading } = useAuth();
+  // Sem Supabase configurado, só em desenvolvimento, dá para pular o login.
+  const [devSkipped, setDevSkipped] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     FiraSans_400Regular,
     FiraSans_500Medium,
@@ -28,19 +34,33 @@ function Root() {
     FiraMono_400Regular,
   });
   // Se as fontes falharem, segue com a do sistema em vez de travar na splash.
-  const ready = loaded && (fontsLoaded || !!fontError);
+  const ready = loaded && !authLoading && (fontsLoaded || !!fontError);
+  const signedIn = !!session || devSkipped;
 
   useEffect(() => {
-    // Só pede a permissão; o agendamento fica com o SettingsProvider, que
-    // conhece as preferências.
+    // Pede a permissão de notificação só depois do login, não por cima da
+    // tela de entrada. O agendamento fica com o SettingsProvider.
+    if (!signedIn) return;
     registerForPushNotificationsAsync().catch((e) => console.warn('Registro de push falhou:', e));
-  }, []);
+  }, [signedIn]);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
 
   if (!ready) return null;
+
+  // Login obrigatório: sem sessão, só a tela de entrada.
+  if (!signedIn) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <AuthScreen
+          onSkip={!SUPABASE_CONFIGURED && __DEV__ ? () => setDevSkipped(true) : undefined}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -56,9 +76,11 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <SettingsProvider>
-          <ContentProvider>
-            <Root />
-          </ContentProvider>
+          <AuthProvider>
+            <ContentProvider>
+              <Root />
+            </ContentProvider>
+          </AuthProvider>
         </SettingsProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

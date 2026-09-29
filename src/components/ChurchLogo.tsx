@@ -6,6 +6,8 @@ import { useThemedStyles } from '../context/SettingsContext';
 interface Props {
   size?: 'small' | 'large';
   align?: 'left' | 'center';
+  /** 'light': branca, para fundos vinho/escuros (tela de login). */
+  tone?: 'brand' | 'light';
 }
 
 /**
@@ -13,15 +15,24 @@ interface Props {
  * fica nítida em qualquer tela, sem o fundo texturizado do arquivo original,
  * e acompanha o tema escuro.
  */
-export default function ChurchLogo({ size = 'small', align = 'left' }: Props) {
+export default function ChurchLogo({ size = 'small', align = 'left', tone = 'brand' }: Props) {
   const { styles } = useThemedStyles(makeStyles);
   const large = size === 'large';
+  const light = tone === 'light';
   return (
     <View style={{ alignItems: align === 'center' ? 'center' : 'flex-start' }}>
       <View>
-        <Text style={[styles.name, { fontSize: large ? 36 : 22 }]}>Casa de Adoração</Text>
-        <Text style={[styles.tagline, { fontSize: large ? 14 : 11 }]}>Reino de Sacerdotes</Text>
-        {large && <Text style={[styles.tagline, { fontSize: 14 }]}>Trindade-GO</Text>}
+        <Text style={[styles.name, { fontSize: large ? 36 : 22 }, light && { color: '#FFFFFF' }]}>
+          Casa de Adoração
+        </Text>
+        <Text style={[styles.tagline, { fontSize: large ? 14 : 11 }, light && styles.taglineLight]}>
+          Reino de Sacerdotes
+        </Text>
+        {large && (
+          <Text style={[styles.tagline, { fontSize: 14 }, light && styles.taglineLight]}>
+            Trindade-GO
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -39,5 +50,8 @@ const makeStyles = (c: Palette) =>
       ...FONTS.mono,
       color: c.text,
       textAlign: 'right',
+    },
+    taglineLight: {
+      color: '#FFFFFFCC',
     },
   });

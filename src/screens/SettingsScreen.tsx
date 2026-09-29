@@ -23,6 +23,7 @@ import {
   BIBLE_FONT_MIN,
 } from '../context/SettingsContext';
 import ChurchLogo from '../components/ChurchLogo';
+import { authErrorMessage, useAuth } from '../context/AuthContext';
 import { clearYoutubeCache } from '../services/youtubeService';
 import { openChurchMap, whatsappChurch } from '../services/contactService';
 import { CHURCH_ADDRESS, CHURCH_INFO } from '../data/churchData';
@@ -53,6 +54,7 @@ const NOTIFICATION_OPTIONS: {
 export default function SettingsScreen() {
   const { styles, colors } = useThemedStyles(makeStyles);
   const { settings, update } = useSettings();
+  const { user, displayName, signOut, deleteAccount } = useAuth();
   const [permission, setPermission] = useState<string | null>(null);
 
   useEffect(() => {
@@ -101,8 +103,66 @@ export default function SettingsScreen() {
 
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
+  const confirmSignOut = () =>
+    Alert.alert('Sair da conta?', 'Você vai precisar entrar de novo para usar o app.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sair', style: 'destructive', onPress: () => signOut() },
+    ]);
+
+  const confirmDelete = () =>
+    Alert.alert(
+      'Excluir sua conta?',
+      'Sua conta e seus dados de acesso serão apagados para sempre. Isso não pode ser desfeito.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+            } catch (e) {
+              Alert.alert('Não foi possível excluir', authErrorMessage(e));
+            }
+          },
+        },
+      ]
+    );
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.sectionTitle}>CONTA</Text>
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {(displayName || user?.email || '?').trim().charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>{displayName || 'Membro'}</Text>
+            <Text style={styles.rowDetail}>{user?.email ?? 'Não conectado'}</Text>
+          </View>
+        </View>
+        {user && (
+          <>
+            <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={confirmSignOut}>
+              <Ionicons name="log-out-outline" size={22} color={colors.primary} />
+              <View style={styles.rowText}>
+                <Text style={styles.rowTitle}>Sair</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={confirmDelete}>
+              <Ionicons name="person-remove-outline" size={22} color={colors.error} />
+              <View style={styles.rowText}>
+                <Text style={[styles.rowTitle, { color: colors.error }]}>Excluir conta</Text>
+                <Text style={styles.rowDetail}>Apaga sua conta para sempre</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
       <Text style={styles.sectionTitle}>APARÊNCIA</Text>
       <View style={styles.themeRow}>
         {THEME_OPTIONS.map((opt) => {
@@ -245,7 +305,7 @@ export default function SettingsScreen() {
           <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>Política de privacidade</Text>
-            <Text style={styles.rowDetail}>Sem cadastro, sem rastreamento</Text>
+            <Text style={styles.rowDetail}>Sem anúncios nem rastreamento</Text>
           </View>
           <Ionicons name="open-outline" size={18} color={colors.gray} />
         </TouchableOpacity>
@@ -385,6 +445,19 @@ const makeStyles = (c: Palette) =>
     previewNum: {
       ...FONTS.bold,
       color: c.primary,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: c.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatarText: {
+      ...FONTS.bold,
+      fontSize: SIZES.xl,
+      color: c.white,
     },
     about: {
       paddingVertical: 8,

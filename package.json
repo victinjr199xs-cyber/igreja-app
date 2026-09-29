@@ -10,6 +10,7 @@
     "@react-navigation/bottom-tabs": "^7.19.1",
     "@react-navigation/native": "^7.4.1",
     "@react-navigation/stack": "^7.11.1",
+    "@supabase/supabase-js": "^2.117.2",
     "expo": "~57.0.25",
     "expo-asset": "~57.0.18",
     "expo-audio": "~57.0.5",
@@ -31,6 +32,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
+    "react-native-url-polyfill": "^4.0.0",
     "react-native-vector-icons": "^10.3.0",
     "react-native-webview": "13.16.1",
     "react-native-youtube-iframe": "^2.4.1"
