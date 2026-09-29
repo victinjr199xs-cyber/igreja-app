@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, SUPABASE_CONFIGURED } from '../services/supabase';
 import {
   AvatarSource,
@@ -39,6 +40,16 @@ interface AuthValue {
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
+
+// O que é de cada pessoa e fica no aparelho: sai junto com a conta, para quem
+// entrar depois no mesmo celular não ver o "continue de onde parou" do outro.
+// Preferências do aparelho (tema, letra, notificações) e o cache de conteúdo
+// público ficam.
+const PERSONAL_KEYS = ['yt:history', 'yt:progress', 'bible:last', 'radio:last'];
+
+async function clearPersonalData() {
+  await AsyncStorage.multiRemove(PERSONAL_KEYS).catch(() => {});
+}
 
 /** Mensagens do Supabase (em inglês) traduzidas para o usuário. */
 export function authErrorMessage(error: unknown): string {
@@ -149,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     signOut: async () => {
       await supabase.auth.signOut();
+      await clearPersonalData();
     },
 
     deleteAccount: async () => {
@@ -161,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.rpc('delete_own_account');
       throwIf(error);
       await supabase.auth.signOut();
+      await clearPersonalData();
     },
 
     avatarUrl: (session?.user?.user_metadata?.avatar_url as string) || null,

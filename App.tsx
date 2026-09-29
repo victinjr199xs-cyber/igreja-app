@@ -17,6 +17,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SUPABASE_CONFIGURED } from './src/services/supabase';
 import AuthScreen from './src/screens/AuthScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { registerForPushNotificationsAsync } from './src/services/notificationService';
 
 // Segura a splash até as fontes e as preferências carregarem: sem isso a logo
@@ -85,6 +86,7 @@ export default function App() {
   // O gesto de voltar da tela de Configurações (stack) usa o gesture-handler.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
       <SafeAreaProvider>
         <SettingsProvider>
           <AuthProvider>
@@ -94,6 +96,7 @@ export default function App() {
           </AuthProvider>
         </SettingsProvider>
       </SafeAreaProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }
