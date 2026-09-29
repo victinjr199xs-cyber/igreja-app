@@ -278,7 +278,17 @@ as mensagens para o token.
 ## Estado dos dados
 
 Os cultos em `src/data/churchData.ts` são os oficiais do banner do canal
-(quarta 19h30 e domingo 18h). Os versículos do dia são uma lista fixa de sete.
+(quarta 19h30 e domingo 18h).
+
+**Eventos especiais** (conferência, batismo, vigília) vão em `SPECIAL_EVENTS`,
+no mesmo arquivo, com data `AAAA-MM-DD` — há um exemplo comentado. Eles
+aparecem em dourado no calendário da aba Programação, numa lista própria e na
+contagem do próximo evento.
+
+A aba Programação tem contagem regressiva para o próximo culto ("acontecendo
+agora" durante o culto, com link para o ao vivo), adicionar à agenda do
+celular (formulário nativo via `expo-calendar/legacy`; semanal para cultos),
+convite por mensagem e calendário do mês (`react-native-calendars`). Os versículos do dia são uma lista fixa de sete.
 
 O texto bíblico **não** é dado de demonstração: é a Bíblia Livre completa, e
 está pronta para uso. As pregações também não: vêm ao vivo do canal da igreja.

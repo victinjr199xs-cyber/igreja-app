@@ -56,35 +56,92 @@ export const WEEKLY_EVENTS: ChurchEvent[] = [
   },
 ];
 
+/** Evento de data única: conferência, batismo, vigília, santa ceia... */
+export interface SpecialEvent extends Omit<ChurchEvent, 'day'> {
+  /** AAAA-MM-DD */
+  date: string;
+}
+
+// Cadastre aqui os eventos especiais. Eles aparecem marcados no calendário da
+// aba Programação e entram na contagem do "próximo culto/evento". Exemplo:
+//   {
+//     id: 'conferencia-2026',
+//     title: 'Conferência de Adoração',
+//     description: 'Três noites de louvor e Palavra.',
+//     date: '2026-11-14',
+//     startTime: '19:00',
+//     location: 'St. Cristina II · Trindade-GO',
+//     type: 'evento',
+//   },
+export const SPECIAL_EVENTS: SpecialEvent[] = [];
+
+export interface Occurrence {
+  event: ChurchEvent | SpecialEvent;
+  /** Dia e hora de início desta ocorrência. */
+  date: Date;
+  special: boolean;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** Data local no formato AAAA-MM-DD (o mesmo de SPECIAL_EVENTS). */
+export const dateKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+function at(day: Date, time: string): Date {
+  const [h, m] = time.split(':').map(Number);
+  const d = new Date(day);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+/** Tudo o que acontece num dia, em ordem de horário. */
+export function eventsOn(day: Date): Occurrence[] {
+  const key = dateKey(day);
+  const list: Occurrence[] = [
+    ...WEEKLY_EVENTS.filter((e) => e.day === day.getDay()).map((event) => ({
+      event,
+      date: at(day, event.startTime),
+      special: false,
+    })),
+    ...SPECIAL_EVENTS.filter((e) => e.date === key).map((event) => ({
+      event,
+      date: at(day, event.startTime),
+      special: true,
+    })),
+  ];
+  return list.sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
 // Janela em que um culto é considerado "acontecendo agora".
 const LIVE_BEFORE_MIN = 10;
 const LIVE_AFTER_MIN = 150;
 
-/** O culto em andamento agora (pelo horário da programação), se houver. */
-export function getCurrentEvent(now = new Date()): ChurchEvent | null {
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  for (const event of WEEKLY_EVENTS) {
-    if (event.day !== now.getDay()) continue;
-    const [h, m] = event.startTime.split(':').map(Number);
-    const start = h * 60 + m;
-    if (minutes >= start - LIVE_BEFORE_MIN && minutes <= start + LIVE_AFTER_MIN) return event;
+/** O culto/evento em andamento agora (pelo horário da programação), se houver. */
+export function getCurrentEvent(now = new Date()): ChurchEvent | SpecialEvent | null {
+  for (const occ of eventsOn(now)) {
+    const diff = (now.getTime() - occ.date.getTime()) / 60000;
+    if (diff >= -LIVE_BEFORE_MIN && diff <= LIVE_AFTER_MIN) return occ.event;
   }
   return null;
 }
 
-/** O próximo culto a partir de agora, com a data em que acontece. */
-export function getNextEvent(now = new Date()): { event: ChurchEvent; date: Date } | null {
-  let best: { event: ChurchEvent; date: Date } | null = null;
-  for (const event of WEEKLY_EVENTS) {
-    const [h, m] = event.startTime.split(':').map(Number);
-    const date = new Date(now);
-    date.setHours(h, m, 0, 0);
-    date.setDate(now.getDate() + ((event.day - now.getDay() + 7) % 7));
-    // Mesmo dia mas o horário já passou: vale o da semana que vem.
-    if (date <= now) date.setDate(date.getDate() + 7);
-    if (!best || date < best.date) best = { event, date };
+/** O próximo culto/evento a partir de agora. */
+export function getNextEvent(now = new Date()): Occurrence | null {
+  for (let i = 0; i < 60; i++) {
+    const day = new Date(now);
+    day.setDate(now.getDate() + i);
+    const next = eventsOn(day).find((occ) => occ.date > now);
+    if (next) return next;
   }
-  return best;
+  return null;
+}
+
+/** Próxima data (com hora) de um culto semanal. */
+export function nextDateOf(event: ChurchEvent, now = new Date()): Date {
+  const date = at(now, event.startTime);
+  date.setDate(now.getDate() + ((event.day - now.getDay() + 7) % 7));
+  if (date <= now) date.setDate(date.getDate() + 7);
+  return date;
 }
 
 export const DAILY_VERSES: BibleVerse[] = [

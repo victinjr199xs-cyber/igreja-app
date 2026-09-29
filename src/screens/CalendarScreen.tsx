@@ -1,165 +1,296 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { Calendar, LocaleConfig, DateData } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { SIZES, FONTS, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
 import ChurchContactCard from '../components/ChurchContactCard';
+import {
+  CHURCH_INFO,
+  WEEKLY_EVENTS,
+  SPECIAL_EVENTS,
+  Occurrence,
+  dateKey,
+  eventsOn,
+  getCurrentEvent,
+  getNextEvent,
+  nextDateOf,
+} from '../data/churchData';
 import { openChurchMap } from '../services/contactService';
-import { WEEKLY_EVENTS, ChurchEvent } from '../data/churchData';
+import { addToPhoneCalendar, shareInvite } from '../services/agendaService';
 
-const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const DAYS_FULL = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+LocaleConfig.locales['pt-br'] = {
+  monthNames: [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ],
+  monthNamesShort: ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'],
+  dayNames: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
+  dayNamesShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+  today: 'Hoje',
+};
+LocaleConfig.defaultLocale = 'pt-br';
 
-const eventColors = (c: Palette): Record<ChurchEvent['type'], string> => ({
-  culto: c.primary,
-  estudo: '#6B7A58',
-  reuniao: c.gold,
-  evento: '#7A6A8B',
-});
+const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const DAYS_SHORT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+const MONTHS = LocaleConfig.locales['pt-br'].monthNames as string[];
 
-const EVENT_ICONS: Record<ChurchEvent['type'], keyof typeof Ionicons.glyphMap> = {
-  culto: 'heart',
-  estudo: 'book',
-  reuniao: 'people',
-  evento: 'star',
+const LIVE_URL = `${CHURCH_INFO.youtube}/live`;
+
+function describeDay(date: Date, now: Date): string {
+  const start = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((start(date) - start(now)) / 86400000);
+  const label = `${date.getDate()} de ${MONTHS[date.getMonth()].toLowerCase()}`;
+  if (days === 0) return `Hoje · ${label}`;
+  if (days === 1) return `Amanhã · ${label}`;
+  return `${DAYS_FULL[date.getDay()]} · ${label}`;
+}
+
+/** Dias, horas e minutos até a data (nunca negativo). */
+function countdown(target: Date, now: Date) {
+  const total = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 60000));
+  return { d: Math.floor(total / 1440), h: Math.floor((total % 1440) / 60), m: total % 60 };
+}
+
+const parseKey = (key: string) => {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
 };
 
 export default function CalendarScreen() {
-  const { styles, colors } = useThemedStyles(makeStyles);
-  const EVENT_COLORS = eventColors(colors);
-  const [selectedDay, setSelectedDay] = useState(new Date().getDay());
+  const { styles, colors, isDark } = useThemedStyles(makeStyles);
+  const [now, setNow] = useState(() => new Date());
+  const [selected, setSelected] = useState(() => dateKey(new Date()));
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
 
-  const getWeekDates = () => {
-    const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
+  // A contagem regressiva anda de minuto em minuto.
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
 
-    return Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
-      return {
-        dayNumber: date.getDate(),
-        dayName: DAYS_OF_WEEK[i],
-        isToday: date.toDateString() === today.toDateString(),
-      };
-    });
+  const live = getCurrentEvent(now);
+  const next = getNextEvent(now);
+  const left = next ? countdown(next.date, now) : null;
+
+  // Marca os dias com programação no mês visível.
+  const markedDates = useMemo(() => {
+    const marks: Record<string, object> = {};
+    const days = new Date(visibleMonth.year, visibleMonth.month + 1, 0).getDate();
+    for (let d = 1; d <= days; d++) {
+      const day = new Date(visibleMonth.year, visibleMonth.month, d);
+      const occ = eventsOn(day);
+      if (occ.length === 0) continue;
+      const special = occ.some((o) => o.special);
+      marks[dateKey(day)] = { marked: true, dotColor: special ? colors.gold : colors.primary };
+    }
+    marks[selected] = { ...(marks[selected] ?? {}), selected: true, selectedColor: colors.primary };
+    return marks;
+  }, [visibleMonth, selected, colors]);
+
+  const selectedDate = parseKey(selected);
+  const selectedEvents = eventsOn(selectedDate);
+
+  const upcomingSpecials = SPECIAL_EVENTS.filter((e) => parseKey(e.date) >= parseKey(dateKey(now)))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 5);
+
+  const addNext = () => {
+    if (!next) return;
+    addToPhoneCalendar(next.event, next.date, !next.special);
   };
 
-  const weekDates = getWeekDates();
-
-  const getEventsForDay = (day: number): ChurchEvent[] => {
-    return WEEKLY_EVENTS.filter((event) => event.day === day);
-  };
-
-  const selectedEvents = getEventsForDay(selectedDay);
+  const renderOccurrence = (occ: Occurrence) => (
+    <View key={`${occ.event.id}-${occ.date.getTime()}`} style={styles.dayEvent}>
+      <View style={[styles.dayEventBar, occ.special && { backgroundColor: colors.gold }]} />
+      <View style={styles.dayEventInfo}>
+        <Text style={styles.dayEventTime}>{occ.event.startTime}</Text>
+        <Text style={styles.dayEventTitle}>{occ.event.title}</Text>
+        <Text style={styles.dayEventDesc}>{occ.event.description}</Text>
+      </View>
+      <TouchableOpacity
+        onPress={() => addToPhoneCalendar(occ.event, occ.date, false)}
+        hitSlop={8}
+        accessibilityLabel="Adicionar à agenda"
+      >
+        <Ionicons name="calendar-outline" size={22} color={colors.primary} />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Programação" subtitle="Cultos da semana · Trindade-GO" />
+      <ScreenHeader title="Programação" subtitle="Cultos e eventos · Trindade-GO" />
 
-      <View style={styles.weekContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {weekDates.map((date, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.dayCard,
-                selectedDay === index && styles.dayCardSelected,
-                date.isToday && styles.dayCardToday,
-              ]}
-              onPress={() => setSelectedDay(index)}
-            >
-              <Text
-                style={[
-                  styles.dayName,
-                  selectedDay === index && styles.dayNameSelected,
-                ]}
-              >
-                {date.dayName}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Destaque: acontecendo agora, ou contagem para o próximo. */}
+        {live ? (
+          <View style={[styles.hero, styles.heroLive]}>
+            <View style={styles.heroTop}>
+              <View style={styles.liveDot} />
+              <Text style={styles.heroLabel}>ACONTECENDO AGORA</Text>
+            </View>
+            <Text style={styles.heroTitle}>{live.title}</Text>
+            <Text style={styles.heroWhen}>Começou às {live.startTime}</Text>
+            <TouchableOpacity style={styles.heroButton} onPress={() => Linking.openURL(LIVE_URL)}>
+              <Ionicons name="logo-youtube" size={18} color="#C62828" />
+              <Text style={[styles.heroButtonText, { color: '#C62828' }]}>Assistir ao vivo</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          next &&
+          left && (
+            <View style={styles.hero}>
+              <Text style={styles.heroLabel}>{next.special ? 'PRÓXIMO EVENTO' : 'PRÓXIMO CULTO'}</Text>
+              <Text style={styles.heroTitle}>{next.event.title}</Text>
+              <Text style={styles.heroWhen}>
+                {describeDay(next.date, now)} · {next.event.startTime}
               </Text>
-              <Text
-                style={[
-                  styles.dayNumber,
-                  selectedDay === index && styles.dayNumberSelected,
-                  date.isToday && styles.dayNumberToday,
-                ]}
-              >
-                {date.dayNumber}
-              </Text>
-              {getEventsForDay(index).length > 0 && (
-                <View
-                  style={[
-                    styles.eventDot,
-                    selectedDay === index && styles.eventDotSelected,
-                  ]}
-                />
-              )}
+              <View style={styles.countRow}>
+                {[
+                  { v: left.d, l: left.d === 1 ? 'dia' : 'dias' },
+                  { v: left.h, l: 'horas' },
+                  { v: left.m, l: 'min' },
+                ].map((c) => (
+                  <View key={c.l} style={styles.countBox}>
+                    <Text style={styles.countValue}>{String(c.v).padStart(2, '0')}</Text>
+                    <Text style={styles.countLabel}>{c.l}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )
+        )}
+
+        <View style={styles.actions}>
+          {[
+            { icon: 'calendar' as const, label: 'Agenda', onPress: addNext },
+            { icon: 'share-social' as const, label: 'Convidar', onPress: shareInvite },
+            { icon: 'navigate' as const, label: 'Como chegar', onPress: openChurchMap },
+          ].map((a) => (
+            <TouchableOpacity key={a.label} style={styles.action} onPress={a.onPress}>
+              <View style={styles.actionIcon}>
+                <Ionicons name={a.icon} size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.actionText}>{a.label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
-      </View>
+        </View>
 
-      <View style={styles.dayHeader}>
-        <Text style={styles.dayTitle}>{DAYS_FULL[selectedDay]}</Text>
-        <Text style={styles.eventCount}>
-          {selectedEvents.length} {selectedEvents.length === 1 ? 'evento' : 'eventos'}
-        </Text>
-      </View>
-
-      <ScrollView style={styles.eventsList} showsVerticalScrollIndicator={false}>
-        {selectedEvents.length > 0 ? (
-          selectedEvents.map((event) => (
-            <TouchableOpacity key={event.id} style={styles.eventCard} onPress={openChurchMap}>
-              <View style={[styles.eventTypeBar, { backgroundColor: EVENT_COLORS[event.type] }]} />
-              <View style={styles.eventContent}>
-                <View style={styles.eventHeader}>
-                  <View style={[styles.eventIconContainer, { backgroundColor: EVENT_COLORS[event.type] + '20' }]}>
-                    <Ionicons
-                      name={EVENT_ICONS[event.type]}
-                      size={20}
-                      color={EVENT_COLORS[event.type]}
-                    />
-                  </View>
-                  <View style={styles.eventInfo}>
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                    <Text style={styles.eventType}>
-                      {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.eventDescription}>{event.description}</Text>
-                <View style={styles.eventFooter}>
-                  <View style={styles.eventDetail}>
-                    <Ionicons name="time-outline" size={14} color={colors.textLight} />
-                    <Text style={styles.eventDetailText}>
-                      {event.endTime ? `${event.startTime} - ${event.endTime}` : event.startTime}
-                    </Text>
-                  </View>
-                  <View style={styles.eventDetail}>
-                    <Ionicons name="location-outline" size={14} color={colors.textLight} />
-                    <Text style={styles.eventDetailText}>{event.location}</Text>
-                  </View>
-                </View>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionBar} />
+          <Text style={styles.sectionTitle}>Cultos semanais</Text>
+        </View>
+        {WEEKLY_EVENTS.slice()
+          .sort((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7))
+          .map((event) => (
+            <View key={event.id} style={styles.weekly}>
+              <View style={styles.weeklyDay}>
+                <Text style={styles.weeklyDayText}>{DAYS_SHORT[event.day]}</Text>
+                <Text style={styles.weeklyTime}>{event.startTime}</Text>
               </View>
-            </TouchableOpacity>
-          ))
+              <View style={styles.weeklyInfo}>
+                <Text style={styles.weeklyTitle}>{event.title}</Text>
+                <Text style={styles.weeklyDesc}>{event.description}</Text>
+                <Text style={styles.weeklyMeta}>Toda {DAYS_FULL[event.day].toLowerCase()} · {event.location}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.weeklyAdd}
+                onPress={() => addToPhoneCalendar(event, nextDateOf(event, now), true)}
+                accessibilityLabel={`Adicionar ${event.title} à agenda, toda semana`}
+              >
+                <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+          ))}
+
+        {upcomingSpecials.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionBar, { backgroundColor: colors.gold }]} />
+              <Text style={styles.sectionTitle}>Eventos especiais</Text>
+            </View>
+            {upcomingSpecials.map((e) => {
+              const d = parseKey(e.date);
+              return (
+                <TouchableOpacity key={e.id} style={styles.special} onPress={() => setSelected(e.date)}>
+                  <View style={styles.specialDate}>
+                    <Text style={styles.specialDay}>{d.getDate()}</Text>
+                    <Text style={styles.specialMonth}>
+                      {(LocaleConfig.locales['pt-br'].monthNamesShort as string[])[d.getMonth()].toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.weeklyInfo}>
+                    <Text style={styles.weeklyTitle}>{e.title}</Text>
+                    <Text style={styles.weeklyMeta}>
+                      {DAYS_FULL[d.getDay()]} · {e.startTime} · {e.location}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </>
+        )}
+
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionBar} />
+          <Text style={styles.sectionTitle}>Calendário</Text>
+        </View>
+        <View style={styles.calendarCard}>
+          <Calendar
+            // Remonta ao trocar o tema: o componente guarda os estilos internamente.
+            key={isDark ? 'dark' : 'light'}
+            current={selected}
+            onDayPress={(d: DateData) => setSelected(d.dateString)}
+            onMonthChange={(d: DateData) => setVisibleMonth({ year: d.year, month: d.month - 1 })}
+            markedDates={markedDates}
+            firstDay={0}
+            enableSwipeMonths
+            theme={{
+              calendarBackground: colors.card,
+              textSectionTitleColor: colors.textLight,
+              dayTextColor: colors.text,
+              todayTextColor: colors.primary,
+              selectedDayBackgroundColor: colors.primary,
+              selectedDayTextColor: colors.white,
+              textDisabledColor: colors.border,
+              monthTextColor: colors.text,
+              arrowColor: colors.primary,
+              dotColor: colors.primary,
+              selectedDotColor: colors.white,
+              textDayFontFamily: FONTS.regular.fontFamily,
+              textMonthFontFamily: FONTS.bold.fontFamily,
+              textDayHeaderFontFamily: FONTS.mono.fontFamily,
+              textMonthFontSize: 17,
+            }}
+          />
+          <View style={styles.legend}>
+            <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+            <Text style={styles.legendText}>Culto</Text>
+            <View style={[styles.legendDot, { backgroundColor: colors.gold, marginLeft: 16 }]} />
+            <Text style={styles.legendText}>Evento especial</Text>
+          </View>
+        </View>
+
+        <Text style={styles.dayHeading}>{describeDay(selectedDate, now)}</Text>
+        {selectedEvents.length > 0 ? (
+          selectedEvents.map(renderOccurrence)
         ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={64} color={colors.border} />
-            <Text style={styles.emptyTitle}>Nenhum evento</Text>
-            <Text style={styles.emptyText}>Não há programação para este dia.</Text>
+          <View style={styles.empty}>
+            <Ionicons name="moon-outline" size={22} color={colors.gray} />
+            <Text style={styles.emptyText}>Sem programação neste dia.</Text>
           </View>
         )}
-        <View style={{ marginTop: 8, marginBottom: 24 }}>
-          <ChurchContactCard />
+
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionBar} />
+          <Text style={styles.sectionTitle}>Visite-nos</Text>
         </View>
+        <ChurchContactCard />
       </ScrollView>
     </View>
   );
@@ -167,159 +298,291 @@ export default function CalendarScreen() {
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: c.background,
-  },
-  weekContainer: {
-    backgroundColor: c.card,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-  },
-  dayCard: {
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginHorizontal: 4,
-    borderRadius: 12,
-    minWidth: 56,
-  },
-  dayCardSelected: {
-    backgroundColor: c.primary,
-  },
-  dayCardToday: {
-    borderWidth: 2,
-    borderColor: c.secondary,
-  },
-  dayName: {
-    fontSize: SIZES.small,
-    color: c.textLight,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  dayNameSelected: {
-    color: c.white,
-  },
-  dayNumber: {
-    fontSize: SIZES.large,
-    fontWeight: '700',
-    color: c.text,
-  },
-  dayNumberSelected: {
-    color: c.white,
-  },
-  dayNumberToday: {
-    color: c.secondary,
-  },
-  eventDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: c.secondary,
-    marginTop: 4,
-  },
-  eventDotSelected: {
-    backgroundColor: c.card,
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SIZES.padding,
-    paddingVertical: 16,
-  },
-  dayTitle: {
-    fontSize: SIZES.extraLarge,
-    fontWeight: '700',
-    color: c.text,
-  },
-  eventCount: {
-    fontSize: SIZES.font,
-    color: c.textLight,
-  },
-  eventsList: {
-    flex: 1,
-    paddingHorizontal: SIZES.padding,
-  },
-  eventCard: {
-    flexDirection: 'row',
-    backgroundColor: c.card,
-    borderRadius: SIZES.radius,
-    marginBottom: 12,
-    overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  eventTypeBar: {
-    width: 4,
-  },
-  eventContent: {
-    flex: 1,
-    padding: 16,
-  },
-  eventHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  eventIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  eventInfo: {
-    flex: 1,
-  },
-  eventTitle: {
-    fontSize: SIZES.medium,
-    fontWeight: '700',
-    color: c.text,
-  },
-  eventType: {
-    fontSize: SIZES.small,
-    color: c.textLight,
-    marginTop: 2,
-  },
-  eventDescription: {
-    fontSize: SIZES.font,
-    color: c.textLight,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  eventFooter: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  eventDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  eventDetailText: {
-    fontSize: SIZES.small,
-    color: c.textLight,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: SIZES.large,
-    fontWeight: '600',
-    color: c.text,
-    marginTop: 16,
-  },
-  emptyText: {
-    fontSize: SIZES.font,
-    color: c.textLight,
-    marginTop: 8,
-  },
-});
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: SIZES.padding,
+      paddingBottom: 32,
+    },
+    hero: {
+      backgroundColor: c.primary,
+      borderRadius: SIZES.radius + 4,
+      padding: 18,
+    },
+    heroLive: {
+      backgroundColor: '#C62828',
+    },
+    heroTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    liveDot: {
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+      backgroundColor: '#fff',
+    },
+    heroLabel: {
+      ...FONTS.mono,
+      fontSize: 11,
+      letterSpacing: 1,
+      color: '#ffffffCC',
+    },
+    heroTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.extraLarge,
+      color: '#fff',
+      marginTop: 4,
+    },
+    heroWhen: {
+      ...FONTS.regular,
+      fontSize: SIZES.font,
+      color: '#ffffffDD',
+      marginTop: 2,
+    },
+    heroButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 8,
+      backgroundColor: '#fff',
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      borderRadius: 20,
+      marginTop: 14,
+    },
+    heroButtonText: {
+      ...FONTS.bold,
+      fontSize: SIZES.font,
+    },
+    countRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 16,
+    },
+    countBox: {
+      flex: 1,
+      alignItems: 'center',
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      borderRadius: SIZES.radius,
+      paddingVertical: 10,
+    },
+    countValue: {
+      ...FONTS.bold,
+      fontSize: 28,
+      color: '#fff',
+    },
+    countLabel: {
+      ...FONTS.mono,
+      fontSize: 11,
+      color: '#ffffffCC',
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 12,
+    },
+    action: {
+      flex: 1,
+      alignItems: 'center',
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    actionIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: c.primary + '18',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    actionText: {
+      ...FONTS.medium,
+      fontSize: SIZES.small,
+      color: c.text,
+      marginTop: 6,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 24,
+      marginBottom: 10,
+    },
+    sectionBar: {
+      width: 3,
+      height: 18,
+      backgroundColor: c.primary,
+      marginRight: 8,
+    },
+    sectionTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.large,
+      color: c.text,
+    },
+    weekly: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      padding: 12,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    weeklyDay: {
+      width: 64,
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: c.primary,
+      marginRight: 12,
+    },
+    weeklyDayText: {
+      ...FONTS.mono,
+      fontSize: 12,
+      color: '#ffffffCC',
+    },
+    weeklyTime: {
+      ...FONTS.bold,
+      fontSize: SIZES.large,
+      color: '#fff',
+    },
+    weeklyInfo: {
+      flex: 1,
+    },
+    weeklyTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.medium,
+      color: c.text,
+    },
+    weeklyDesc: {
+      ...FONTS.regular,
+      fontSize: SIZES.small,
+      color: c.textLight,
+      marginTop: 2,
+    },
+    weeklyMeta: {
+      ...FONTS.mono,
+      fontSize: 11,
+      color: c.textLight,
+      marginTop: 4,
+    },
+    weeklyAdd: {
+      paddingLeft: 8,
+    },
+    special: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      padding: 12,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: c.gold,
+    },
+    specialDate: {
+      width: 52,
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    specialDay: {
+      ...FONTS.bold,
+      fontSize: 26,
+      color: c.gold,
+    },
+    specialMonth: {
+      ...FONTS.mono,
+      fontSize: 11,
+      color: c.textLight,
+    },
+    calendarCard: {
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      borderWidth: 1,
+      borderColor: c.border,
+      overflow: 'hidden',
+      paddingBottom: 10,
+    },
+    legend: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 4,
+    },
+    legendDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: 6,
+    },
+    legendText: {
+      ...FONTS.regular,
+      fontSize: SIZES.small,
+      color: c.textLight,
+    },
+    dayHeading: {
+      ...FONTS.bold,
+      fontSize: SIZES.medium,
+      color: c.text,
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    dayEvent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      marginBottom: 8,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingRight: 14,
+    },
+    dayEventBar: {
+      width: 4,
+      alignSelf: 'stretch',
+      backgroundColor: c.primary,
+    },
+    dayEventInfo: {
+      flex: 1,
+      padding: 12,
+    },
+    dayEventTime: {
+      ...FONTS.mono,
+      fontSize: SIZES.small,
+      color: c.primary,
+    },
+    dayEventTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.medium,
+      color: c.text,
+      marginTop: 2,
+    },
+    dayEventDesc: {
+      ...FONTS.regular,
+      fontSize: SIZES.small,
+      color: c.textLight,
+      marginTop: 2,
+    },
+    empty: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    emptyText: {
+      ...FONTS.regular,
+      fontSize: SIZES.font,
+      color: c.textLight,
+    },
+  });

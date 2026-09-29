@@ -45,6 +45,13 @@
           "color": "#823030"
         }
       ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "O app adiciona os cultos e eventos da Casa de Adoração à sua agenda.",
+          "remindersPermission": "O app não usa seus lembretes."
+        }
+      ],
       "expo-font",
       "expo-asset",
       [
