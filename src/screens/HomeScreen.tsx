@@ -167,13 +167,8 @@ export default function HomeScreen() {
       {/* Topo: saudação, logo e horários como no banner do canal. */}
       <View style={[styles.hero, { paddingTop: insets.top + 14 }]}>
         <View style={styles.heroTop}>
-          <TouchableOpacity
-            style={styles.userRow}
-            onPress={() => navigation.navigate('Meu perfil')}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Meu perfil"
-          >
+          {/* Só exibe: o perfil é aberto por Configurações. */}
+          <View style={styles.userRow}>
             <Avatar size={48} />
             <View style={styles.userText}>
               <Text style={styles.greeting} numberOfLines={1}>
@@ -184,7 +179,7 @@ export default function HomeScreen() {
                 {WEEKDAYS[now.getDay()]}, {now.getDate()} de {MONTHS[now.getMonth()]}
               </Text>
             </View>
-          </TouchableOpacity>
+          </View>
           <TouchableOpacity
             style={styles.gear}
             onPress={() => navigation.navigate('Configurações')}
