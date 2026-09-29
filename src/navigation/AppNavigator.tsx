@@ -1,8 +1,9 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { COLORS, FONTS } from '../constants/theme';
+import HomeScreen from '../screens/HomeScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import SermonsScreen from '../screens/SermonsScreen';
 import RadioScreen from '../screens/RadioScreen';
@@ -10,8 +11,19 @@ import BibleScreen from '../screens/BibleScreen';
 
 const Tab = createBottomTabNavigator();
 
+const NAV_THEME = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: COLORS.primary,
+    background: COLORS.background,
+  },
+};
+
 const getIconName = (routeName: string, focused: boolean): keyof typeof Ionicons.glyphMap => {
   switch (routeName) {
+    case 'Início':
+      return focused ? 'home' : 'home-outline';
     case 'Calendário':
       return focused ? 'calendar' : 'calendar-outline';
     case 'Pregações':
@@ -27,7 +39,7 @@ const getIconName = (routeName: string, focused: boolean): keyof typeof Ionicons
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={NAV_THEME}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
@@ -35,7 +47,7 @@ export default function AppNavigator() {
             const iconName = getIconName(route.name, focused);
             return <Ionicons name={iconName} size={size} color={color} />;
           },
-          tabBarActiveTintColor: COLORS.secondary,
+          tabBarActiveTintColor: COLORS.primary,
           tabBarInactiveTintColor: COLORS.gray,
           tabBarStyle: {
             backgroundColor: COLORS.white,
@@ -45,16 +57,14 @@ export default function AppNavigator() {
             shadowOffset: { width: 0, height: -4 },
             shadowOpacity: 0.1,
             shadowRadius: 8,
-            height: 70,
-            paddingBottom: 10,
-            paddingTop: 8,
           },
           tabBarLabelStyle: {
+            ...FONTS.medium,
             fontSize: 11,
-            fontWeight: '600',
           },
         })}
       >
+        <Tab.Screen name="Início" component={HomeScreen} />
         <Tab.Screen name="Calendário" component={CalendarScreen} />
         <Tab.Screen name="Pregações" component={SermonsScreen} />
         <Tab.Screen name="Rádio" component={RadioScreen} />

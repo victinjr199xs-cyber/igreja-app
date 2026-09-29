@@ -5,21 +5,20 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
-  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 import { WEEKLY_EVENTS, ChurchEvent } from '../data/churchData';
 
 const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
 const EVENT_COLORS: Record<ChurchEvent['type'], string> = {
-  culto: '#1a237e',
-  estudo: '#2e7d32',
-  reuniao: '#e65100',
-  evento: '#6a1b9a',
+  culto: COLORS.primary,
+  estudo: '#5E6B4E',
+  reuniao: COLORS.gold,
+  evento: '#5A4A6B',
 };
 
 const EVENT_ICONS: Record<ChurchEvent['type'], keyof typeof Ionicons.glyphMap> = {
@@ -57,16 +56,8 @@ export default function CalendarScreen() {
   const selectedEvents = getEventsForDay(selectedDay);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Programação Semanal</Text>
-          <Text style={styles.headerSubtitle}>Igreja Evangélica</Text>
-        </View>
-        <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Programação" subtitle="Cultos da semana · Trindade-GO" />
 
       <View style={styles.weekContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -143,7 +134,7 @@ export default function CalendarScreen() {
                   <View style={styles.eventDetail}>
                     <Ionicons name="time-outline" size={14} color={COLORS.textLight} />
                     <Text style={styles.eventDetailText}>
-                      {event.startTime} - {event.endTime}
+                      {event.endTime ? `${event.startTime} - ${event.endTime}` : event.startTime}
                     </Text>
                   </View>
                   <View style={styles.eventDetail}>
@@ -162,7 +153,7 @@ export default function CalendarScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -170,25 +161,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  header: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SIZES.padding,
-    paddingTop: 20,
-    paddingBottom: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: SIZES.xxl,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
-  headerSubtitle: {
-    fontSize: SIZES.font,
-    color: COLORS.white + 'CC',
-    marginTop: 4,
   },
   weekContainer: {
     backgroundColor: COLORS.white,

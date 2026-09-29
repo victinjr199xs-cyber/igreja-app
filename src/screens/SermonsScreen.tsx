@@ -5,8 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
-  SafeAreaView,
   Modal,
   Dimensions,
   Image,
@@ -15,6 +13,7 @@ import {
 import YoutubePlayer, { PLAYER_STATES, YoutubeIframeRef } from 'react-native-youtube-iframe';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 import {
   Serie,
   Video,
@@ -279,13 +278,8 @@ export default function SermonsScreen() {
   const loadedCount = serieVideos?.length ?? openSerie?.videoCount ?? 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Pregações</Text>
-        <Text style={styles.headerSubtitle}>Casa de Adoração · Reino de Sacerdotes</Text>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Pregações" subtitle="Séries e cultos do canal" />
 
       {openSerie ? (
         <>
@@ -473,7 +467,7 @@ export default function SermonsScreen() {
           )}
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -481,22 +475,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  header: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SIZES.padding,
-    paddingTop: 20,
-    paddingBottom: 24,
-  },
-  headerTitle: {
-    fontSize: SIZES.xxl,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
-  headerSubtitle: {
-    fontSize: SIZES.font,
-    color: COLORS.white + 'CC',
-    marginTop: 4,
   },
   continueCard: {
     flexDirection: 'row',

@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
-  SafeAreaView,
   Animated,
   ScrollView,
   ActivityIndicator,
@@ -13,6 +11,7 @@ import {
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 
 // Streams oficiais das emissoras, todos em HTTPS (iOS e Android bloqueiam HTTP
 // puro). Novo Tempo é HLS (.m3u8), que o expo-audio toca nas duas plataformas.
@@ -155,13 +154,8 @@ export default function RadioScreen() {
   const liveLabel = isPlaying ? 'AO VIVO' : isConnecting ? 'CONECTANDO…' : 'PAUSADO';
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Rádio Cristã</Text>
-        <Text style={styles.headerSubtitle}>Música e adoração 24h</Text>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Rádio" subtitle="Música e adoração ao vivo" />
 
       <View style={styles.playerSection}>
         <View style={styles.albumArtContainer}>
@@ -169,7 +163,7 @@ export default function RadioScreen() {
             <View style={styles.albumArtInner}>
               <Ionicons
                 name={isPlaying ? 'musical-notes' : 'radio'}
-                size={64}
+                size={52}
                 color={COLORS.white}
               />
             </View>
@@ -240,7 +234,7 @@ export default function RadioScreen() {
           })}
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -248,22 +242,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  header: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SIZES.padding,
-    paddingTop: 20,
-    paddingBottom: 24,
-  },
-  headerTitle: {
-    fontSize: SIZES.xxl,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
-  headerSubtitle: {
-    fontSize: SIZES.font,
-    color: COLORS.white + 'CC',
-    marginTop: 4,
   },
   playerSection: {
     backgroundColor: COLORS.white,
@@ -277,9 +255,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   albumArt: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -290,9 +268,9 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   albumArtInner: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',

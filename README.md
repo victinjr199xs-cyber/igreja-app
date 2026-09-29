@@ -45,8 +45,12 @@ Ambos devem passar sem nenhum aviso.
 App.tsx                      registra as notificações e monta o navegador
 index.ts                     entrada do Expo
 src/
-  navigation/AppNavigator    bottom tabs: Calendário, Pregações, Rádio, Bíblia
+  navigation/AppNavigator    bottom tabs: Início, Calendário, Pregações, Rádio, Bíblia
+  components/
+    ChurchLogo               logo da igreja recriada em texto (Fira Sans + Fira Mono)
+    ScreenHeader             cabeçalho de todas as abas: logo + título da tela
   screens/
+    HomeScreen               próximo culto, versículo, última ministração, atalhos
     CalendarScreen           programação da semana, por dia
     SermonsScreen            séries e cultos do YouTube + player em modal
     RadioScreen              player de streaming + estações + playlist
@@ -61,6 +65,25 @@ src/
     blivre/                  um JSON por livro (Bíblia Livre)
 scripts/build-bible.mjs      gera books.ts e os JSONs por livro
 ```
+
+## Identidade visual
+
+Tirada da logo e do banner do canal da Casa de Adoração (Trindade-GO):
+
+| Token | Cor | Uso |
+|---|---|---|
+| `primary` | `#823030` vinho | nome da igreja, destaques, aba ativa |
+| `text` | `#333333` grafite | textos |
+| `surface` | `#E3E1DF` cinza da logo | cabeçalhos |
+| `background` | `#EEECEB` | fundo das telas |
+
+Fontes: **Fira Sans** (títulos, como o nome na logo) e **Fira Mono** (subtítulos,
+como "Reino de Sacerdotes"). São importadas peso a peso em `App.tsx` — o índice
+do pacote embutiria os 18 pesos.
+
+A logo é tipográfica, então `ChurchLogo` a recria em texto em vez de usar a
+imagem. Ícone, splash e ícones Android em `assets/` foram gerados a partir da
+foto de perfil do canal, com o fundo removido.
 
 ## Mídia
 
@@ -219,8 +242,8 @@ as mensagens para o token.
 
 ## Estado dos dados
 
-Os eventos e versículos em `src/data/churchData.ts` são de demonstração e
-precisam ser substituídos por dados reais da igreja.
+Os cultos em `src/data/churchData.ts` são os oficiais do banner do canal
+(quarta 19h30 e domingo 18h). Os versículos do dia são uma lista fixa de sete.
 
 O texto bíblico **não** é dado de demonstração: é a Bíblia Livre completa, e
 está pronta para uso. As pregações também não: vêm ao vivo do canal da igreja.

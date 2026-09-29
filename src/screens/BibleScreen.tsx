@@ -4,13 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
-  SafeAreaView,
   FlatList,
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 import { DAILY_VERSES, BibleVerse } from '../data/churchData';
 import { BIBLE_BOOKS, BibleBook, loadBookChapters } from '../data/bible/books';
 
@@ -87,13 +86,8 @@ export default function BibleScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Bíblia Sagrada</Text>
-        <Text style={styles.headerSubtitle}>Bíblia Livre · domínio público</Text>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Bíblia Sagrada" subtitle="Bíblia Livre · domínio público" />
 
       {view === 'books' && (
         <>
@@ -235,7 +229,7 @@ export default function BibleScreen() {
           <Ionicons name="chevron-forward" size={18} color={COLORS.gray} />
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -243,22 +237,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  header: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SIZES.padding,
-    paddingTop: 20,
-    paddingBottom: 24,
-  },
-  headerTitle: {
-    fontSize: SIZES.xxl,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
-  headerSubtitle: {
-    fontSize: SIZES.font,
-    color: COLORS.white + 'CC',
-    marginTop: 4,
   },
   dailyVerseCard: {
     backgroundColor: COLORS.white,

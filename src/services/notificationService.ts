@@ -23,7 +23,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
       name: 'Versículo Diário',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF6F00',
+      lightColor: '#823030',
     });
   }
 

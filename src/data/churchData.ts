@@ -4,7 +4,8 @@ export interface ChurchEvent {
   description: string;
   day: number;
   startTime: string;
-  endTime: string;
+  // Opcional: a igreja divulga só o horário de início.
+  endTime?: string;
   location: string;
   type: 'culto' | 'estudo' | 'reuniao' | 'evento';
 }
@@ -17,68 +18,42 @@ export interface BibleVerse {
   verse: number;
 }
 
+// Horários oficiais, do banner do canal da igreja no YouTube.
 export const WEEKLY_EVENTS: ChurchEvent[] = [
   {
-    id: '1',
-    title: 'Culto de Domingo',
-    description: 'Culto principal com adoração e pregação da Palavra.',
-    day: 0,
-    startTime: '10:00',
-    endTime: '12:00',
-    location: 'Templo Principal',
-    type: 'culto',
-  },
-  {
-    id: '2',
-    title: 'Culto de Terça',
-    description: 'Culto de oração e estudo bíblico.',
-    day: 2,
-    startTime: '19:30',
-    endTime: '21:00',
-    location: 'Templo Principal',
-    type: 'culto',
-  },
-  {
-    id: '3',
-    title: 'Estudo Bíblico',
-    description: 'Estudo aprofundado das Escrituras.',
+    id: 'culto-quarta',
+    title: 'Culto de Quarta',
+    description: 'Adoração e ministração da Palavra.',
     day: 3,
     startTime: '19:30',
-    endTime: '21:00',
-    location: 'Salão de Estudos',
-    type: 'estudo',
-  },
-  {
-    id: '4',
-    title: 'Reunião de Jovens',
-    description: 'Encontro de jovens com louvor e palavra.',
-    day: 5,
-    startTime: '20:00',
-    endTime: '22:00',
-    location: 'Salão de Jovens',
-    type: 'reuniao',
-  },
-  {
-    id: '5',
-    title: 'Culto de Sábado',
-    description: 'Vigília de oração e adoração.',
-    day: 6,
-    startTime: '19:00',
-    endTime: '22:00',
-    location: 'Templo Principal',
+    location: 'Casa de Adoração · Trindade-GO',
     type: 'culto',
   },
   {
-    id: '6',
-    title: 'Escola Dominical',
-    description: 'Aula para todas as idades antes do culto.',
+    id: 'culto-domingo',
+    title: 'Culto de Domingo',
+    description: 'Adoração e ministração da Palavra.',
     day: 0,
-    startTime: '08:30',
-    endTime: '09:30',
-    location: 'Salas de Aula',
-    type: 'estudo',
+    startTime: '18:00',
+    location: 'Casa de Adoração · Trindade-GO',
+    type: 'culto',
   },
 ];
+
+/** O próximo culto a partir de agora, com a data em que acontece. */
+export function getNextEvent(now = new Date()): { event: ChurchEvent; date: Date } | null {
+  let best: { event: ChurchEvent; date: Date } | null = null;
+  for (const event of WEEKLY_EVENTS) {
+    const [h, m] = event.startTime.split(':').map(Number);
+    const date = new Date(now);
+    date.setHours(h, m, 0, 0);
+    date.setDate(now.getDate() + ((event.day - now.getDay() + 7) % 7));
+    // Mesmo dia mas o horário já passou: vale o da semana que vem.
+    if (date <= now) date.setDate(date.getDate() + 7);
+    if (!best || date < best.date) best = { event, date };
+  }
+  return best;
+}
 
 export const DAILY_VERSES: BibleVerse[] = [
   {
