@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { DAILY_VERSES } from '../data/churchData';
+import { DAILY_VERSES, WEEKLY_EVENTS } from '../data/churchData';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -58,39 +58,84 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
   }
 }
 
-export async function scheduleDailyVerseNotification(): Promise<void> {
+export interface NotificationPrefs {
+  notifyDailyVerse: boolean;
+  notifyReading: boolean;
+  notifyServices: boolean;
+}
+
+// Minutos de antecedência do lembrete de culto.
+const SERVICE_REMINDER_MINUTES = 60;
+
+/**
+ * Cancela tudo e agenda de novo conforme as preferências. Chamado na abertura
+ * do app e a cada mudança em Configurações.
+ */
+export async function scheduleNotifications(prefs: NotificationPrefs): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 
-  const today = new Date().getDay();
-  const verse = DAILY_VERSES[today % DAILY_VERSES.length];
+  if (prefs.notifyDailyVerse) {
+    // Um agendamento semanal por dia da semana, cada um com o versículo que o
+    // app mostra naquele dia. Um DAILY único repetiria o mesmo texto sempre.
+    for (let day = 0; day < 7; day++) {
+      const verse = DAILY_VERSES[day % DAILY_VERSES.length];
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '✝️ Versículo do Dia',
+          body: `${verse.text} — ${verse.reference}`,
+          data: { verse: verse.reference },
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+          // Expo conta de 1 (domingo) a 7; Date.getDay() de 0 a 6.
+          weekday: day + 1,
+          hour: 7,
+          minute: 0,
+        },
+      });
+    }
+  }
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '✝️ Versículo do Dia',
-      body: `${verse.text} — ${verse.reference}`,
-      data: { verse: verse.reference },
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: 7,
-      minute: 0,
-    },
-  });
+  if (prefs.notifyReading) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '📖 Hora de Ler a Bíblia',
+        body: 'Reserve um momento para ler a Palavra de Deus hoje.',
+        data: { type: 'reading-reminder' },
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: 19,
+        minute: 0,
+      },
+    });
+  }
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '📖 Hora de Ler a Bíblia',
-      body: 'Reserve um momento para ler a Palavra de Deus hoje.',
-      data: { type: 'reading-reminder' },
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: 19,
-      minute: 0,
-    },
-  });
+  if (prefs.notifyServices) {
+    for (const event of WEEKLY_EVENTS) {
+      const [h, m] = event.startTime.split(':').map(Number);
+      const total = h * 60 + m - SERVICE_REMINDER_MINUTES;
+      // Culto logo após a meia-noite empurraria o lembrete para o dia anterior.
+      const day = total < 0 ? (event.day + 6) % 7 : event.day;
+      const minutes = (total + 1440) % 1440;
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `⛪ ${event.title} em 1 hora`,
+          body: `Hoje às ${event.startTime} · ${event.location}`,
+          data: { type: 'service-reminder', id: event.id },
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+          weekday: day + 1,
+          hour: Math.floor(minutes / 60),
+          minute: minutes % 60,
+        },
+      });
+    }
+  }
 }
 
 export async function cancelAllNotifications(): Promise<void> {

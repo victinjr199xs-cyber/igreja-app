@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import YoutubePlayer, { PLAYER_STATES, YoutubeIframeRef } from 'react-native-youtube-iframe';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SIZES, FONTS, Palette } from '../constants/theme';
+import { useThemedStyles } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
 import {
   Serie,
@@ -64,6 +66,7 @@ interface VideoRowProps {
 }
 
 function VideoRow({ video, prefix = '', onPress }: VideoRowProps) {
+  const { styles } = useThemedStyles(makeStyles);
   return (
     <TouchableOpacity style={styles.videoRow} onPress={onPress}>
       <View style={styles.videoThumbBox}>
@@ -88,6 +91,8 @@ function VideoRow({ video, prefix = '', onPress }: VideoRowProps) {
 }
 
 export default function SermonsScreen() {
+  const { styles, colors } = useThemedStyles(makeStyles);
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('series');
 
   const [series, setSeries] = useState<Serie[] | null>(null);
@@ -241,7 +246,7 @@ export default function SermonsScreen() {
   const renderState = (error: string | null, retry: () => void) =>
     error ? (
       <View style={styles.centerBox}>
-        <Ionicons name="cloud-offline-outline" size={40} color={COLORS.gray} />
+        <Ionicons name="cloud-offline-outline" size={40} color={colors.gray} />
         <Text style={styles.centerText}>Não foi possível carregar as pregações.</Text>
         <Text style={styles.centerDetail}>Verifique sua conexão e tente novamente.</Text>
         {/* O erro técnico vem do Google, em inglês: só interessa a quem desenvolve. */}
@@ -252,7 +257,7 @@ export default function SermonsScreen() {
       </View>
     ) : (
       <View style={styles.centerBox}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
 
@@ -262,10 +267,10 @@ export default function SermonsScreen() {
         {item.thumbnail ? (
           <Image source={{ uri: item.thumbnail }} style={styles.serieThumb} />
         ) : (
-          <Ionicons name="albums-outline" size={32} color={COLORS.white} />
+          <Ionicons name="albums-outline" size={32} color={colors.white} />
         )}
         <View style={styles.countBadge}>
-          <Ionicons name="play" size={10} color={COLORS.white} />
+          <Ionicons name="play" size={10} color={colors.white} />
           <Text style={styles.countText}>{item.videoCount}</Text>
         </View>
       </View>
@@ -290,7 +295,7 @@ export default function SermonsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Voltar para as séries"
             >
-              <Ionicons name="chevron-back" size={22} color={COLORS.primary} />
+              <Ionicons name="chevron-back" size={22} color={colors.primary} />
             </TouchableOpacity>
             <View style={styles.serieBarInfo}>
               <Text style={styles.serieBarTitle} numberOfLines={1}>
@@ -330,7 +335,7 @@ export default function SermonsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Continuar assistindo ${progress.video.title}, a partir de ${formatClock(progress.seconds)}`}
               >
-                <Ionicons name="play-circle" size={36} color={COLORS.secondary} />
+                <Ionicons name="play-circle" size={36} color={colors.secondary} />
                 <View style={styles.continueInfo}>
                   <Text style={styles.continueLabel}>Continuar assistindo</Text>
                   <Text style={styles.continueTitle} numberOfLines={1}>
@@ -345,7 +350,7 @@ export default function SermonsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Dispensar"
               >
-                <Ionicons name="close" size={20} color={COLORS.gray} />
+                <Ionicons name="close" size={20} color={colors.gray} />
               </TouchableOpacity>
             </View>
           )}
@@ -393,7 +398,7 @@ export default function SermonsScreen() {
                       disabled={loadingMore}
                     >
                       {loadingMore ? (
-                        <ActivityIndicator color={COLORS.primary} />
+                        <ActivityIndicator color={colors.primary} />
                       ) : (
                         <Text style={styles.loadMoreText}>Carregar cultos anteriores</Text>
                       )}
@@ -414,14 +419,16 @@ export default function SermonsScreen() {
         onRequestClose={closePlayer}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+          {/* Modal em tela cheia não herda a área segura: sem isso o botão de
+              fechar fica sob o notch do iPhone. */}
+          <View style={[styles.modalHeader, { paddingTop: insets.top + SIZES.padding }]}>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={closePlayer}
               accessibilityRole="button"
               accessibilityLabel="Fechar vídeo"
             >
-              <Ionicons name="close" size={28} color={COLORS.white} />
+              <Ionicons name="close" size={28} color={colors.white} />
             </TouchableOpacity>
             <Text style={styles.modalTitle} numberOfLines={1}>
               {current?.title}
@@ -455,7 +462,7 @@ export default function SermonsScreen() {
                   >
                     <Text style={styles.upNextLabel}>A SEGUIR</Text>
                     <View style={styles.upNextRow}>
-                      <Ionicons name="play-forward" size={20} color={COLORS.primary} />
+                      <Ionicons name="play-forward" size={20} color={colors.primary} />
                       <Text style={styles.upNextTitle} numberOfLines={2}>
                         {upNext.title}
                       </Text>
@@ -471,21 +478,22 @@ export default function SermonsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   continueCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     marginHorizontal: SIZES.padding,
     marginTop: SIZES.padding,
     padding: 12,
     borderRadius: SIZES.radius,
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.secondary,
+    borderLeftColor: c.secondary,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -504,23 +512,23 @@ const styles = StyleSheet.create({
   continueLabel: {
     fontSize: SIZES.small,
     fontWeight: '700',
-    color: COLORS.secondary,
+    color: c.secondary,
   },
   continueTitle: {
     fontSize: SIZES.font,
     fontWeight: '600',
-    color: COLORS.text,
+    color: c.text,
     marginTop: 2,
   },
   continueMeta: {
     fontSize: SIZES.small,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 2,
   },
   tabs: {
     flexDirection: 'row',
     margin: SIZES.padding,
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     borderRadius: SIZES.radius,
     padding: 4,
   },
@@ -531,15 +539,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
   },
   tabText: {
     fontSize: SIZES.font,
     fontWeight: '600',
-    color: COLORS.textLight,
+    color: c.textLight,
   },
   tabTextActive: {
-    color: COLORS.white,
+    color: c.white,
   },
   listContent: {
     paddingHorizontal: SIZES.padding,
@@ -555,7 +563,7 @@ const styles = StyleSheet.create({
   serieThumbBox: {
     aspectRatio: 16 / 9,
     borderRadius: SIZES.radius,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: c.primaryLight,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
@@ -571,31 +579,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: COLORS.black + 'B3',
+    backgroundColor: c.black + 'B3',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   countText: {
-    color: COLORS.white,
+    color: c.white,
     fontSize: SIZES.small,
     fontWeight: '700',
   },
   serieTitle: {
     fontSize: SIZES.font,
     fontWeight: '600',
-    color: COLORS.text,
+    color: c.text,
     marginTop: 6,
   },
   serieBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     paddingHorizontal: SIZES.padding,
     paddingVertical: 10,
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: c.border,
   },
   serieBack: {
     paddingRight: 8,
@@ -606,16 +614,16 @@ const styles = StyleSheet.create({
   serieBarTitle: {
     fontSize: SIZES.large,
     fontWeight: '700',
-    color: COLORS.text,
+    color: c.text,
   },
   serieBarCount: {
     fontSize: SIZES.small,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 2,
   },
   videoRow: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     borderRadius: SIZES.radius,
     marginBottom: 10,
     overflow: 'hidden',
@@ -623,7 +631,7 @@ const styles = StyleSheet.create({
   videoThumbBox: {
     width: 140,
     aspectRatio: 16 / 9,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: c.primaryLight,
   },
   videoThumb: {
     width: '100%',
@@ -633,13 +641,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 4,
     bottom: 4,
-    backgroundColor: COLORS.black + 'B3',
+    backgroundColor: c.black + 'B3',
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 3,
   },
   durationText: {
-    color: COLORS.white,
+    color: c.white,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -651,27 +659,27 @@ const styles = StyleSheet.create({
   videoTitle: {
     fontSize: SIZES.font,
     fontWeight: '600',
-    color: COLORS.text,
+    color: c.text,
   },
   videoMeta: {
     fontSize: SIZES.small,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 4,
   },
   loadMore: {
     alignItems: 'center',
     paddingVertical: 14,
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     borderRadius: SIZES.radius,
   },
   loadMoreText: {
     fontSize: SIZES.font,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: c.primary,
   },
   emptyText: {
     textAlign: 'center',
-    color: COLORS.textLight,
+    color: c.textLight,
     fontSize: SIZES.font,
     marginTop: 32,
   },
@@ -684,36 +692,36 @@ const styles = StyleSheet.create({
   centerText: {
     fontSize: SIZES.medium,
     fontWeight: '600',
-    color: COLORS.text,
+    color: c.text,
     marginTop: 12,
     textAlign: 'center',
   },
   centerDetail: {
     fontSize: SIZES.small,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 6,
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: SIZES.radius,
   },
   retryText: {
-    color: COLORS.white,
+    color: c.white,
     fontWeight: '600',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: COLORS.black,
+    backgroundColor: c.black,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: SIZES.padding,
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
   },
   closeButton: {
     marginRight: 12,
@@ -722,33 +730,33 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: SIZES.medium,
     fontWeight: '600',
-    color: COLORS.white,
+    color: c.white,
   },
   modalInfo: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     padding: SIZES.padding,
   },
   modalVideoTitle: {
     fontSize: SIZES.xl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: c.text,
   },
   modalMeta: {
     fontSize: SIZES.font,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 8,
   },
   upNext: {
     marginTop: 24,
     padding: 14,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: c.lightGray,
     borderRadius: SIZES.radius,
   },
   upNextLabel: {
     fontSize: SIZES.small,
     fontWeight: '700',
-    color: COLORS.textLight,
+    color: c.textLight,
     letterSpacing: 1,
   },
   upNextRow: {
@@ -761,6 +769,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: SIZES.font,
     fontWeight: '600',
-    color: COLORS.text,
+    color: c.text,
   },
 });

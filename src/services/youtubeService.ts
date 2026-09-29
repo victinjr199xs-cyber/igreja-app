@@ -228,6 +228,17 @@ export async function fetchCultos(pageToken?: string): Promise<CultosPage> {
   return pageToken ? load() : cached('yt:cultos', TTL_CULTOS, load);
 }
 
+/**
+ * Apaga as listas guardadas do YouTube (a próxima abertura busca de novo).
+ * O "continuar assistindo" só sai se pedido.
+ */
+export async function clearYoutubeCache(includeProgress = false): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys();
+  await AsyncStorage.multiRemove(
+    keys.filter((k) => k.startsWith('yt:') && (includeProgress || k !== PROGRESS_KEY))
+  );
+}
+
 const PROGRESS_KEY = 'yt:progress';
 
 export async function loadProgress(): Promise<WatchProgress | null> {

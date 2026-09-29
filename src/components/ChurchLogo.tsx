@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, FONTS } from '../constants/theme';
+import { FONTS, Palette } from '../constants/theme';
+import { useThemedStyles } from '../context/SettingsContext';
 
 interface Props {
   size?: 'small' | 'large';
@@ -9,9 +10,11 @@ interface Props {
 
 /**
  * A logo da igreja é tipográfica, então é recriada em texto em vez de imagem:
- * fica nítida em qualquer tela e sem o fundo texturizado do arquivo original.
+ * fica nítida em qualquer tela, sem o fundo texturizado do arquivo original,
+ * e acompanha o tema escuro.
  */
 export default function ChurchLogo({ size = 'small', align = 'left' }: Props) {
+  const { styles } = useThemedStyles(makeStyles);
   const large = size === 'large';
   return (
     <View style={{ alignItems: align === 'center' ? 'center' : 'flex-start' }}>
@@ -24,16 +27,17 @@ export default function ChurchLogo({ size = 'small', align = 'left' }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  name: {
-    ...FONTS.bold,
-    color: COLORS.primary,
-    letterSpacing: -0.3,
-  },
-  // Na logo, o subtítulo fica alinhado à direita, sob o fim do nome.
-  tagline: {
-    ...FONTS.mono,
-    color: COLORS.text,
-    textAlign: 'right',
-  },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    name: {
+      ...FONTS.bold,
+      color: c.primary,
+      letterSpacing: -0.3,
+    },
+    // Na logo, o subtítulo fica alinhado à direita, sob o fim do nome.
+    tagline: {
+      ...FONTS.mono,
+      color: c.text,
+      textAlign: 'right',
+    },
+  });

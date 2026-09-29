@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { SIZES, FONTS, Palette } from '../constants/theme';
+import { useThemedStyles } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
 
 // Streams oficiais das emissoras, todos em HTTPS (iOS e Android bloqueiam HTTP
@@ -55,6 +56,7 @@ const ARTWORK_URL =
   'https://raw.githubusercontent.com/victinjr199xs-cyber/igreja-app/main/assets/icon.png';
 
 export default function RadioScreen() {
+  const { styles, colors } = useThemedStyles(makeStyles);
   const [selectedStation, setSelectedStation] = useState<Station>(RADIO_STATIONS[0]);
   // Intenção do usuário, separada de status.playing: ao trocar de estação o
   // player novo nasce parado e precisa saber se deve começar a tocar.
@@ -164,7 +166,7 @@ export default function RadioScreen() {
               <Ionicons
                 name={isPlaying ? 'musical-notes' : 'radio'}
                 size={52}
-                color={COLORS.white}
+                color={colors.white}
               />
             </View>
           </Animated.View>
@@ -179,21 +181,21 @@ export default function RadioScreen() {
 
         <View style={styles.controls}>
           <TouchableOpacity style={styles.controlButton} onPress={() => skipStation(-1)}>
-            <Ionicons name="play-skip-back" size={28} color={COLORS.text} />
+            <Ionicons name="play-skip-back" size={28} color={colors.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.playButton} onPress={togglePlayback}>
             {isConnecting ? (
-              <ActivityIndicator size="large" color={COLORS.white} />
+              <ActivityIndicator size="large" color={colors.white} />
             ) : (
               <Ionicons
                 name={isPlaying ? 'pause' : 'play'}
                 size={36}
-                color={COLORS.white}
+                color={colors.white}
               />
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.controlButton} onPress={() => skipStation(1)}>
-            <Ionicons name="play-skip-forward" size={28} color={COLORS.text} />
+            <Ionicons name="play-skip-forward" size={28} color={colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -214,7 +216,7 @@ export default function RadioScreen() {
                     <Ionicons
                       name={(active && isPlaying ? 'volume-high' : station.icon) as any}
                       size={16}
-                      color={active ? COLORS.white : COLORS.primary}
+                      color={active ? colors.white : colors.primary}
                     />
                   </View>
                   <View style={styles.playlistItemInfo}>
@@ -238,17 +240,18 @@ export default function RadioScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   playerSection: {
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     padding: SIZES.padding,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: c.border,
   },
   albumArtContainer: {
     alignItems: 'center',
@@ -258,11 +261,11 @@ const styles = StyleSheet.create({
     width: 128,
     height: 128,
     borderRadius: 64,
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
-    shadowColor: COLORS.primary,
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -271,7 +274,7 @@ const styles = StyleSheet.create({
     width: 112,
     height: 112,
     borderRadius: 56,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: c.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -282,36 +285,36 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: c.lightGray,
     borderRadius: 12,
   },
   liveIndicatorActive: {
-    backgroundColor: COLORS.error + '20',
+    backgroundColor: c.error + '20',
   },
   liveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.gray,
+    backgroundColor: c.gray,
   },
   liveDotActive: {
-    backgroundColor: COLORS.error,
+    backgroundColor: c.error,
   },
   liveText: {
     fontSize: SIZES.small,
     fontWeight: '700',
-    color: COLORS.gray,
+    color: c.gray,
   },
   trackTitle: {
     fontSize: SIZES.xl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: c.text,
     textAlign: 'center',
     marginTop: 12,
   },
   trackArtist: {
     fontSize: SIZES.medium,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 4,
   },
   controls: {
@@ -327,11 +330,11 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
-    shadowColor: COLORS.primary,
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -339,7 +342,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: SIZES.large,
     fontWeight: '700',
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 12,
   },
   playlistSection: {
@@ -353,15 +356,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     borderRadius: SIZES.radius,
     padding: 12,
     marginBottom: 8,
   },
   playlistItemActive: {
-    backgroundColor: COLORS.primary + '10',
+    backgroundColor: c.primary + '10',
     borderWidth: 1,
-    borderColor: COLORS.primary + '30',
+    borderColor: c.primary + '30',
   },
   playlistItemLeft: {
     flexDirection: 'row',
@@ -372,13 +375,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: c.lightGray,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   playlistNumberActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
   },
   playlistItemInfo: {
     flex: 1,
@@ -386,14 +389,14 @@ const styles = StyleSheet.create({
   playlistItemTitle: {
     fontSize: SIZES.font,
     fontWeight: '600',
-    color: COLORS.text,
+    color: c.text,
   },
   playlistItemTitleActive: {
-    color: COLORS.primary,
+    color: c.primary,
   },
   playlistItemArtist: {
     fontSize: SIZES.small,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 2,
   },
 });

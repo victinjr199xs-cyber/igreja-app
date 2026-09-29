@@ -7,19 +7,20 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { SIZES, FONTS, Palette } from '../constants/theme';
+import { useThemedStyles } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
 import { WEEKLY_EVENTS, ChurchEvent } from '../data/churchData';
 
 const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
-const EVENT_COLORS: Record<ChurchEvent['type'], string> = {
-  culto: COLORS.primary,
-  estudo: '#5E6B4E',
-  reuniao: COLORS.gold,
-  evento: '#5A4A6B',
-};
+const eventColors = (c: Palette): Record<ChurchEvent['type'], string> => ({
+  culto: c.primary,
+  estudo: '#6B7A58',
+  reuniao: c.gold,
+  evento: '#7A6A8B',
+});
 
 const EVENT_ICONS: Record<ChurchEvent['type'], keyof typeof Ionicons.glyphMap> = {
   culto: 'heart',
@@ -29,6 +30,8 @@ const EVENT_ICONS: Record<ChurchEvent['type'], keyof typeof Ionicons.glyphMap> =
 };
 
 export default function CalendarScreen() {
+  const { styles, colors } = useThemedStyles(makeStyles);
+  const EVENT_COLORS = eventColors(colors);
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
 
   const getWeekDates = () => {
@@ -132,13 +135,13 @@ export default function CalendarScreen() {
                 <Text style={styles.eventDescription}>{event.description}</Text>
                 <View style={styles.eventFooter}>
                   <View style={styles.eventDetail}>
-                    <Ionicons name="time-outline" size={14} color={COLORS.textLight} />
+                    <Ionicons name="time-outline" size={14} color={colors.textLight} />
                     <Text style={styles.eventDetailText}>
                       {event.endTime ? `${event.startTime} - ${event.endTime}` : event.startTime}
                     </Text>
                   </View>
                   <View style={styles.eventDetail}>
-                    <Ionicons name="location-outline" size={14} color={COLORS.textLight} />
+                    <Ionicons name="location-outline" size={14} color={colors.textLight} />
                     <Text style={styles.eventDetailText}>{event.location}</Text>
                   </View>
                 </View>
@@ -147,7 +150,7 @@ export default function CalendarScreen() {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={64} color={COLORS.border} />
+            <Ionicons name="calendar-outline" size={64} color={colors.border} />
             <Text style={styles.emptyTitle}>Nenhum evento</Text>
             <Text style={styles.emptyText}>Não há programação para este dia.</Text>
           </View>
@@ -157,16 +160,17 @@ export default function CalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   weekContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: c.border,
   },
   dayCard: {
     alignItems: 'center',
@@ -177,41 +181,41 @@ const styles = StyleSheet.create({
     minWidth: 56,
   },
   dayCardSelected: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
   },
   dayCardToday: {
     borderWidth: 2,
-    borderColor: COLORS.secondary,
+    borderColor: c.secondary,
   },
   dayName: {
     fontSize: SIZES.small,
-    color: COLORS.textLight,
+    color: c.textLight,
     fontWeight: '600',
     marginBottom: 4,
   },
   dayNameSelected: {
-    color: COLORS.white,
+    color: c.white,
   },
   dayNumber: {
     fontSize: SIZES.large,
     fontWeight: '700',
-    color: COLORS.text,
+    color: c.text,
   },
   dayNumberSelected: {
-    color: COLORS.white,
+    color: c.white,
   },
   dayNumberToday: {
-    color: COLORS.secondary,
+    color: c.secondary,
   },
   eventDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: c.secondary,
     marginTop: 4,
   },
   eventDotSelected: {
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -223,11 +227,11 @@ const styles = StyleSheet.create({
   dayTitle: {
     fontSize: SIZES.extraLarge,
     fontWeight: '700',
-    color: COLORS.text,
+    color: c.text,
   },
   eventCount: {
     fontSize: SIZES.font,
-    color: COLORS.textLight,
+    color: c.textLight,
   },
   eventsList: {
     flex: 1,
@@ -235,7 +239,7 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
+    backgroundColor: c.card,
     borderRadius: SIZES.radius,
     marginBottom: 12,
     overflow: 'hidden',
@@ -271,16 +275,16 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: SIZES.medium,
     fontWeight: '700',
-    color: COLORS.text,
+    color: c.text,
   },
   eventType: {
     fontSize: SIZES.small,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 2,
   },
   eventDescription: {
     fontSize: SIZES.font,
-    color: COLORS.textLight,
+    color: c.textLight,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -295,7 +299,7 @@ const styles = StyleSheet.create({
   },
   eventDetailText: {
     fontSize: SIZES.small,
-    color: COLORS.textLight,
+    color: c.textLight,
   },
   emptyState: {
     alignItems: 'center',
@@ -305,12 +309,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: SIZES.large,
     fontWeight: '600',
-    color: COLORS.text,
+    color: c.text,
     marginTop: 16,
   },
   emptyText: {
     fontSize: SIZES.font,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 8,
   },
 });

@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   Image,
   Linking,
-  StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, SIZES } from '../constants/theme';
+import { FONTS, SIZES, Palette } from '../constants/theme';
+import { useThemedStyles } from '../context/SettingsContext';
 import ChurchLogo from '../components/ChurchLogo';
 import { DAILY_VERSES, WEEKLY_EVENTS, getNextEvent } from '../data/churchData';
 import { fetchCultos, Video } from '../services/youtubeService';
@@ -44,6 +44,7 @@ function formatDate(iso: string): string {
 }
 
 export default function HomeScreen() {
+  const { styles, colors } = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const [now] = useState(() => new Date());
@@ -66,9 +67,17 @@ export default function HomeScreen() {
       contentContainerStyle={{ paddingBottom: 32 }}
       showsVerticalScrollIndicator={false}
     >
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
       <View style={[styles.hero, { paddingTop: insets.top + 32 }]}>
+        <TouchableOpacity
+          style={[styles.settingsButton, { top: insets.top + 8 }]}
+          onPress={() => navigation.navigate('Configurações')}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Configurações"
+        >
+          <Ionicons name="settings-outline" size={24} color={colors.text} />
+        </TouchableOpacity>
         <ChurchLogo size="large" align="center" />
         {/* Como no banner: horários com a barra vinho à esquerda. */}
         <View style={styles.schedule}>
@@ -89,7 +98,7 @@ export default function HomeScreen() {
           activeOpacity={0.85}
           onPress={() => navigation.navigate('Calendário')}
         >
-          <Ionicons name="time-outline" size={28} color={COLORS.white} />
+          <Ionicons name="time-outline" size={28} color={colors.white} />
           <View style={styles.nextInfo}>
             <Text style={styles.nextLabel}>PRÓXIMO CULTO</Text>
             <Text style={styles.nextTitle}>{describeWhen(next.date, now)}</Text>
@@ -100,7 +109,7 @@ export default function HomeScreen() {
 
       <View style={[styles.card, styles.verseCard]}>
         <View style={styles.cardHeader}>
-          <Ionicons name="sparkles" size={18} color={COLORS.gold} />
+          <Ionicons name="sparkles" size={18} color={colors.gold} />
           <Text style={styles.cardLabel}>Versículo do dia</Text>
         </View>
         <Text style={styles.verseText}>{verse.text}</Text>
@@ -114,14 +123,14 @@ export default function HomeScreen() {
           onPress={() => navigation.navigate('Pregações')}
         >
           <View style={styles.cardHeader}>
-            <Ionicons name="play-circle" size={18} color={COLORS.primary} />
+            <Ionicons name="play-circle" size={18} color={colors.primary} />
             <Text style={styles.cardLabel}>Última ministração</Text>
           </View>
           {latest.thumbnail && (
             <View>
               <Image source={{ uri: latest.thumbnail }} style={styles.thumb} />
               <View style={styles.playOverlay}>
-                <Ionicons name="play" size={28} color={COLORS.white} />
+                <Ionicons name="play" size={28} color={colors.white} />
               </View>
             </View>
           )}
@@ -137,7 +146,7 @@ export default function HomeScreen() {
         {QUICK_LINKS.map((link) => (
           <View key={link.tab} style={styles.gridCell}>
             <TouchableOpacity style={styles.gridTile} onPress={() => navigation.navigate(link.tab)}>
-              <Ionicons name={link.icon} size={28} color={COLORS.primary} />
+              <Ionicons name={link.icon} size={28} color={colors.primary} />
               <Text style={styles.gridLabel}>{link.label}</Text>
             </TouchableOpacity>
           </View>
@@ -147,11 +156,11 @@ export default function HomeScreen() {
       <Text style={styles.sectionTitle}>Siga a igreja</Text>
       <View style={styles.social}>
         <TouchableOpacity style={styles.socialButton} onPress={() => Linking.openURL(INSTAGRAM_URL)}>
-          <Ionicons name="logo-instagram" size={20} color={COLORS.primary} />
+          <Ionicons name="logo-instagram" size={20} color={colors.primary} />
           <Text style={styles.socialText}>@casadeadoracaooficial</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.socialButton} onPress={() => Linking.openURL(YOUTUBE_URL)}>
-          <Ionicons name="logo-youtube" size={20} color={COLORS.primary} />
+          <Ionicons name="logo-youtube" size={20} color={colors.primary} />
           <Text style={styles.socialText}>Canal no YouTube</Text>
         </TouchableOpacity>
       </View>
@@ -159,18 +168,23 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   hero: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: c.surface,
     paddingHorizontal: SIZES.padding,
     paddingBottom: 28,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: c.border,
+  },
+  settingsButton: {
+    position: 'absolute',
+    right: SIZES.padding,
   },
   schedule: {
     flexDirection: 'row',
@@ -178,16 +192,16 @@ const styles = StyleSheet.create({
   },
   scheduleBar: {
     width: 3,
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     marginRight: 10,
   },
   scheduleText: {
     ...FONTS.bold,
     fontSize: SIZES.large,
-    color: COLORS.text,
+    color: c.text,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: SIZES.radius,
     marginHorizontal: SIZES.padding,
     marginTop: SIZES.padding,
@@ -199,7 +213,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   nextCard: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -210,18 +224,18 @@ const styles = StyleSheet.create({
   nextLabel: {
     ...FONTS.mono,
     fontSize: SIZES.small,
-    color: COLORS.white + 'CC',
+    color: c.white + 'CC',
   },
   nextTitle: {
     ...FONTS.bold,
     fontSize: SIZES.xl,
-    color: COLORS.white,
+    color: c.white,
     marginTop: 2,
   },
   nextPlace: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.white + 'CC',
+    color: c.white + 'CC',
     marginTop: 2,
   },
   cardHeader: {
@@ -233,23 +247,23 @@ const styles = StyleSheet.create({
   cardLabel: {
     ...FONTS.medium,
     fontSize: SIZES.font,
-    color: COLORS.textLight,
+    color: c.textLight,
   },
   verseCard: {
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.gold,
+    borderLeftColor: c.gold,
   },
   verseText: {
     ...FONTS.regular,
     fontSize: SIZES.medium,
     lineHeight: 24,
-    color: COLORS.text,
+    color: c.text,
     fontStyle: 'italic',
   },
   verseRef: {
     ...FONTS.mono,
     fontSize: SIZES.small,
-    color: COLORS.primary,
+    color: c.primary,
     marginTop: 8,
     textAlign: 'right',
   },
@@ -257,7 +271,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 16 / 9,
     borderRadius: 8,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: c.lightGray,
   },
   playOverlay: {
     position: 'absolute',
@@ -267,26 +281,26 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: COLORS.primary + 'E6',
+    backgroundColor: c.primary + 'E6',
     justifyContent: 'center',
     alignItems: 'center',
   },
   videoTitle: {
     ...FONTS.bold,
     fontSize: SIZES.medium,
-    color: COLORS.text,
+    color: c.text,
     marginTop: 10,
   },
   videoDate: {
     ...FONTS.mono,
     fontSize: SIZES.small,
-    color: COLORS.textLight,
+    color: c.textLight,
     marginTop: 4,
   },
   sectionTitle: {
     ...FONTS.bold,
     fontSize: SIZES.large,
-    color: COLORS.text,
+    color: c.text,
     marginHorizontal: SIZES.padding,
     marginTop: 24,
   },
@@ -301,17 +315,17 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   gridTile: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: SIZES.radius,
     paddingVertical: 18,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: c.border,
   },
   gridLabel: {
     ...FONTS.medium,
     fontSize: SIZES.font,
-    color: COLORS.text,
+    color: c.text,
     marginTop: 6,
   },
   social: {
@@ -323,15 +337,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: SIZES.radius,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: c.border,
     padding: 14,
   },
   socialText: {
     ...FONTS.medium,
     fontSize: SIZES.font,
-    color: COLORS.text,
+    color: c.text,
   },
 });

@@ -81,6 +81,29 @@ Fontes: **Fira Sans** (títulos, como o nome na logo) e **Fira Mono** (subtítul
 como "Reino de Sacerdotes"). São importadas peso a peso em `App.tsx` — o índice
 do pacote embutiria os 18 pesos.
 
+### Modo claro e escuro
+
+`src/constants/theme.ts` tem duas paletas com as mesmas chaves, `LIGHT` e
+`DARK`. Nenhuma tela importa cores fixas: cada uma declara
+`makeStyles = (c: Palette) => StyleSheet.create(...)` e usa
+`useThemedStyles(makeStyles)`, que devolve os estilos da paleta ativa.
+
+A escolha (automático, claro ou escuro) fica em Configurações. No automático o
+app segue o celular — por isso `userInterfaceStyle` é `automatic` no
+`app.json`.
+
+## Configurações
+
+Tela empilhada sobre as abas, aberta pela engrenagem no topo de qualquer aba.
+As preferências ficam em `SettingsContext` (AsyncStorage, chave `settings:v1`):
+
+- aparência: automático / claro / escuro
+- tamanho do texto da Bíblia (também ajustável no leitor, botão "Aa")
+- notificações: versículo do dia (7h), lembrete de leitura (19h), lembrete
+  1 hora antes de cada culto — reagendadas a cada mudança
+- limpar dados salvos (cache do YouTube, continuar assistindo/lendo)
+- sobre: redes da igreja, tradução, versão
+
 A logo é tipográfica, então `ChurchLogo` a recria em texto em vez de usar a
 imagem. Ícone, splash e ícones Android em `assets/` foram gerados a partir da
 foto de perfil do canal, com o fundo removido.
@@ -224,8 +247,10 @@ os arquivos convivem lado a lado, sem mexer nas telas.
 
 ## Notificações
 
-São **apenas locais**: versículo do dia às 7h e lembrete de leitura às 19h,
-agendados por `scheduleDailyVerseNotification()`. Notificação local não precisa
+São **apenas locais**: versículo do dia às 7h (um agendamento semanal por dia,
+cada um com o versículo daquele dia), lembrete de leitura às 19h e aviso 1 hora
+antes de cada culto. `scheduleNotifications(prefs)` cancela e reagenda tudo
+conforme as Configurações. Notificação local não precisa
 de conta Expo, `projectId` ou servidor.
 
 `registerForPushNotificationsAsync()` só devolve um token Expo se houver um

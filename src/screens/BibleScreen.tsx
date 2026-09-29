@@ -1,475 +1,696 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   TextInput,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { FONTS, SIZES, Palette } from '../constants/theme';
+import {
+  useSettings,
+  useThemedStyles,
+  BIBLE_FONT_MAX,
+  BIBLE_FONT_MIN,
+} from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
-import { DAILY_VERSES, BibleVerse } from '../data/churchData';
-import { BIBLE_BOOKS, BibleBook, loadBookChapters } from '../data/bible/books';
+import { DAILY_VERSES } from '../data/churchData';
+import { BIBLE_BOOKS, BibleBook, Testament, loadBookChapters } from '../data/bible/books';
+import { BOOK_CATEGORIES, categoryOf } from '../data/bible/categories';
+
+const LAST_READ_KEY = 'bible:last';
+
+interface Position {
+  slug: string;
+  chapter: number;
+}
+
+const bookBySlug = (slug: string) => BIBLE_BOOKS.find((b) => b.slug === slug) ?? null;
+
+/** Capítulo anterior/seguinte, atravessando de um livro para o outro. */
+function neighbor(book: BibleBook, chapter: number, step: 1 | -1): Position | null {
+  if (step === 1 && chapter < book.chapters) return { slug: book.slug, chapter: chapter + 1 };
+  if (step === -1 && chapter > 1) return { slug: book.slug, chapter: chapter - 1 };
+  const other = BIBLE_BOOKS[BIBLE_BOOKS.indexOf(book) + step];
+  if (!other) return null;
+  return { slug: other.slug, chapter: step === 1 ? 1 : other.chapters };
+}
 
 export default function BibleScreen() {
+  const { styles, colors } = useThemedStyles(makeStyles);
+  const { settings, update } = useSettings();
+  const fontSize = settings.bibleFontSize;
+
   const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
+  const [testament, setTestament] = useState<Testament>('AT');
   const [searchQuery, setSearchQuery] = useState('');
-  const [dailyVerse] = useState<BibleVerse>(
-    () => DAILY_VERSES[new Date().getDay() % DAILY_VERSES.length]
-  );
+  const [lastRead, setLastRead] = useState<Position | null>(null);
+  const [showFontPanel, setShowFontPanel] = useState(false);
+  const readerRef = useRef<ScrollView>(null);
+
+  const [dailyVerse] = useState(() => DAILY_VERSES[new Date().getDay() % DAILY_VERSES.length]);
 
   // A vista atual é derivada da seleção, e não guardada à parte, para as duas
   // não saírem de sincronia.
   const view = selectedChapter !== null ? 'reading' : selectedBook ? 'chapters' : 'books';
+
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_READ_KEY)
+      .then((raw) => raw && setLastRead(JSON.parse(raw)))
+      .catch(() => {});
+  }, []);
+
+  // Guarda onde a pessoa parou, para o "Continuar lendo".
+  useEffect(() => {
+    if (!selectedBook || selectedChapter === null) return;
+    const pos = { slug: selectedBook.slug, chapter: selectedChapter };
+    setLastRead(pos);
+    AsyncStorage.setItem(LAST_READ_KEY, JSON.stringify(pos)).catch(() => {});
+    readerRef.current?.scrollTo({ y: 0, animated: false });
+  }, [selectedBook, selectedChapter]);
 
   // O JSON do livro só é lido na primeira vez que ele é aberto.
   const chapters = useMemo(
     () => (selectedBook ? loadBookChapters(selectedBook.slug) : null),
     [selectedBook]
   );
-
   const verses = selectedChapter !== null && chapters ? chapters[selectedChapter - 1] : null;
 
-  const filteredBooks = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return BIBLE_BOOKS;
-    return BIBLE_BOOKS.filter((book) => book.name.toLowerCase().includes(query));
-  }, [searchQuery]);
+  const query = searchQuery.trim().toLowerCase();
+  const categories = useMemo(() => {
+    // Buscando, mostra os dois testamentos; senão, só a aba escolhida.
+    return BOOK_CATEGORIES.map((c) => ({
+      ...c,
+      books: c.books.filter((b) =>
+        query ? b.name.toLowerCase().includes(query) || b.abbrev.toLowerCase() === query : true
+      ),
+    })).filter((c) => c.books.length > 0 && (query || c.testament === testament));
+  }, [query, testament]);
+
+  const openPosition = (pos: Position) => {
+    const book = bookBySlug(pos.slug);
+    if (!book) return;
+    setSelectedBook(book);
+    setSelectedChapter(pos.chapter);
+  };
 
   const backToBooks = () => {
     setSelectedBook(null);
     setSelectedChapter(null);
+    setShowFontPanel(false);
   };
 
-  const goToChapter = (chapter: number) => {
-    if (!selectedBook || chapter < 1 || chapter > selectedBook.chapters) return;
-    setSelectedChapter(chapter);
+  const changeFont = (delta: number) => {
+    const next = Math.min(BIBLE_FONT_MAX, Math.max(BIBLE_FONT_MIN, fontSize + delta));
+    update({ bibleFontSize: next });
   };
 
-  const renderBook = ({ item }: { item: BibleBook }) => (
-    <TouchableOpacity
-      style={styles.bookItem}
-      onPress={() => {
-        setSelectedBook(item);
-        setSelectedChapter(null);
-      }}
-    >
-      <View style={styles.bookIcon}>
-        <Ionicons name="book-outline" size={20} color={COLORS.primary} />
-      </View>
-      <View style={styles.bookInfo}>
-        <Text style={styles.bookName}>{item.name}</Text>
-        <Text style={styles.bookChapters}>
-          {item.chapters} {item.chapters === 1 ? 'capítulo' : 'capítulos'} · {item.testament}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={COLORS.gray} />
-    </TouchableOpacity>
-  );
-
-  const renderChapter = ({ item }: { item: number }) => (
-    <TouchableOpacity style={styles.chapterItem} onPress={() => goToChapter(item)}>
-      <Text style={styles.chapterNumber}>{item}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderVerse = ({ item, index }: { item: string; index: number }) => (
-    <View style={styles.verseRow}>
-      <Text style={styles.verseNumber}>{index + 1}</Text>
-      <Text style={styles.verseBody} selectable>
-        {item}
-      </Text>
-    </View>
-  );
+  const lastBook = lastRead ? bookBySlug(lastRead.slug) : null;
 
   return (
     <View style={styles.container}>
       <ScreenHeader title="Bíblia Sagrada" subtitle="Bíblia Livre · domínio público" />
 
       {view === 'books' && (
-        <>
-          <View style={styles.dailyVerseCard}>
-            <View style={styles.verseHeader}>
-              <Ionicons name="sparkles" size={20} color={COLORS.gold} />
-              <Text style={styles.verseLabel}>Versículo do Dia</Text>
+        <ScrollView
+          contentContainerStyle={styles.booksContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {lastRead && lastBook && !query && (
+            <TouchableOpacity
+              style={styles.continueCard}
+              activeOpacity={0.85}
+              onPress={() => openPosition(lastRead)}
+            >
+              <Ionicons name="bookmark" size={24} color={colors.white} />
+              <View style={styles.continueInfo}>
+                <Text style={styles.continueLabel}>CONTINUAR LENDO</Text>
+                <Text style={styles.continueTitle}>
+                  {lastBook.name} {lastRead.chapter}
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={22} color={colors.white} />
+            </TouchableOpacity>
+          )}
+
+          {!query && (
+            <View style={styles.verseCard}>
+              <View style={styles.verseHeader}>
+                <Ionicons name="sparkles" size={16} color={colors.gold} />
+                <Text style={styles.verseLabel}>Versículo do dia</Text>
+              </View>
+              <Text style={styles.verseText}>{dailyVerse.text}</Text>
+              <Text style={styles.verseReference}>{dailyVerse.reference}</Text>
             </View>
-            <Text style={styles.verseText}>{dailyVerse.text}</Text>
-            <Text style={styles.verseReference}>— {dailyVerse.reference}</Text>
-          </View>
+          )}
 
           <View style={styles.searchContainer}>
-            <Ionicons name="search-outline" size={20} color={COLORS.gray} />
+            <Ionicons name="search-outline" size={20} color={colors.gray} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar livro..."
-              placeholderTextColor={COLORS.gray}
+              placeholder="Buscar livro (ex.: Salmos, Jo)"
+              placeholderTextColor={colors.gray}
               value={searchQuery}
               onChangeText={setSearchQuery}
+              autoCorrect={false}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color={COLORS.gray} />
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={20} color={colors.gray} />
               </TouchableOpacity>
             )}
           </View>
 
-          <FlatList
-            data={filteredBooks}
-            renderItem={renderBook}
-            keyExtractor={(item) => item.slug}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Nenhum livro encontrado.</Text>
-            }
-          />
-        </>
+          {!query && (
+            <View style={styles.segment}>
+              {(['AT', 'NT'] as const).map((t) => (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.segmentItem, testament === t && styles.segmentItemActive]}
+                  onPress={() => setTestament(t)}
+                >
+                  <Text style={[styles.segmentText, testament === t && styles.segmentTextActive]}>
+                    {t === 'AT' ? 'Antigo Testamento' : 'Novo Testamento'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {categories.map((category) => (
+            <View key={category.name} style={styles.category}>
+              <Text style={styles.categoryTitle}>{category.name.toUpperCase()}</Text>
+              <View style={styles.grid}>
+                {category.books.map((book) => (
+                  <View key={book.slug} style={styles.gridCell}>
+                    <TouchableOpacity
+                      style={styles.bookTile}
+                      onPress={() => {
+                        setSelectedBook(book);
+                        setSelectedChapter(null);
+                      }}
+                    >
+                      <Text style={styles.bookAbbrev}>{book.abbrev}</Text>
+                      <Text style={styles.bookName} numberOfLines={1}>
+                        {book.name}
+                      </Text>
+                      <Text style={styles.bookChapters}>
+                        {book.chapters} {book.chapters === 1 ? 'cap.' : 'caps.'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          {categories.length === 0 && (
+            <Text style={styles.emptyText}>Nenhum livro encontrado.</Text>
+          )}
+        </ScrollView>
       )}
 
       {view === 'chapters' && selectedBook && (
         <>
-          <View style={styles.breadcrumb}>
-            <TouchableOpacity onPress={backToBooks}>
-              <Text style={styles.breadcrumbText}>Livros</Text>
+          <View style={styles.bar}>
+            <TouchableOpacity onPress={backToBooks} style={styles.barBack} hitSlop={8}>
+              <Ionicons name="chevron-back" size={24} color={colors.primary} />
             </TouchableOpacity>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.gray} />
-            <Text style={styles.breadcrumbCurrent}>{selectedBook.name}</Text>
+            <View style={styles.barInfo}>
+              <Text style={styles.barTitle}>{selectedBook.name}</Text>
+              <Text style={styles.barSubtitle}>
+                {categoryOf(selectedBook)} · {selectedBook.chapters}{' '}
+                {selectedBook.chapters === 1 ? 'capítulo' : 'capítulos'}
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.chapterSection}>
-            <Text style={styles.chapterTitle}>Escolha o capítulo</Text>
-            <FlatList
-              data={Array.from({ length: selectedBook.chapters }, (_, i) => i + 1)}
-              renderItem={renderChapter}
-              keyExtractor={(item) => String(item)}
-              numColumns={5}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.chapterGrid}
-            />
-          </View>
+          <ScrollView contentContainerStyle={styles.chapterGrid}>
+            {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((n) => {
+              const isLast = lastRead?.slug === selectedBook.slug && lastRead.chapter === n;
+              return (
+                <View key={n} style={styles.chapterCell}>
+                  <TouchableOpacity
+                    style={[styles.chapterItem, isLast && styles.chapterItemLast]}
+                    onPress={() => setSelectedChapter(n)}
+                  >
+                    <Text style={[styles.chapterNumber, isLast && styles.chapterNumberLast]}>
+                      {n}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </ScrollView>
         </>
       )}
 
       {view === 'reading' && selectedBook && selectedChapter !== null && (
         <>
-          <View style={styles.readerBar}>
+          <View style={styles.bar}>
             <TouchableOpacity
-              style={styles.readerBack}
-              onPress={() => setSelectedChapter(null)}
+              onPress={() => {
+                setSelectedChapter(null);
+                setShowFontPanel(false);
+              }}
+              style={styles.barBack}
+              hitSlop={8}
+              accessibilityLabel="Voltar aos capítulos"
             >
-              <Ionicons name="chevron-back" size={22} color={COLORS.primary} />
+              <Ionicons name="chevron-back" size={24} color={colors.primary} />
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.readerTitleArea} onPress={backToBooks}>
-              <Text style={styles.readerTitle} numberOfLines={1}>
+            <TouchableOpacity style={styles.barInfo} onPress={() => setSelectedChapter(null)}>
+              <Text style={styles.barTitle}>
                 {selectedBook.name} {selectedChapter}
               </Text>
-              <Text style={styles.readerSubtitle}>{verses?.length ?? 0} versículos</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.readerNav}
-              disabled={selectedChapter <= 1}
-              onPress={() => goToChapter(selectedChapter - 1)}
-            >
-              <Ionicons
-                name="arrow-back-circle"
-                size={30}
-                color={selectedChapter <= 1 ? COLORS.border : COLORS.primary}
-              />
+              <Text style={styles.barSubtitle}>
+                {verses?.length ?? 0} versículos · toque para trocar
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.readerNav}
-              disabled={selectedChapter >= selectedBook.chapters}
-              onPress={() => goToChapter(selectedChapter + 1)}
+              style={[styles.fontButton, showFontPanel && styles.fontButtonActive]}
+              onPress={() => setShowFontPanel((v) => !v)}
+              accessibilityLabel="Tamanho do texto"
             >
-              <Ionicons
-                name="arrow-forward-circle"
-                size={30}
-                color={
-                  selectedChapter >= selectedBook.chapters ? COLORS.border : COLORS.primary
-                }
-              />
+              <Text style={[styles.fontButtonText, showFontPanel && styles.fontButtonTextActive]}>
+                Aa
+              </Text>
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={verses ?? []}
-            renderItem={renderVerse}
-            keyExtractor={(_, index) => String(index)}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.readerContent}
-            ListFooterComponent={
-              selectedChapter < selectedBook.chapters ? (
-                <TouchableOpacity
-                  style={styles.nextChapterButton}
-                  onPress={() => goToChapter(selectedChapter + 1)}
-                >
-                  <Text style={styles.nextChapterText}>
-                    {selectedBook.name} {selectedChapter + 1}
+          {showFontPanel && (
+            <View style={styles.fontPanel}>
+              <TouchableOpacity
+                style={styles.fontStep}
+                onPress={() => changeFont(-2)}
+                disabled={fontSize <= BIBLE_FONT_MIN}
+              >
+                <Text style={[styles.fontStepText, { fontSize: 14 }]}>A−</Text>
+              </TouchableOpacity>
+              <Text style={styles.fontValue}>{fontSize} pt</Text>
+              <TouchableOpacity
+                style={styles.fontStep}
+                onPress={() => changeFont(2)}
+                disabled={fontSize >= BIBLE_FONT_MAX}
+              >
+                <Text style={[styles.fontStepText, { fontSize: 20 }]}>A+</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <ScrollView ref={readerRef} contentContainerStyle={styles.readerContent}>
+            <Text style={styles.readerBook}>{selectedBook.name.toUpperCase()}</Text>
+            <Text style={styles.readerChapter}>{selectedChapter}</Text>
+
+            {/* Um parágrafo corrido, com o número do versículo em destaque,
+                como numa Bíblia impressa. */}
+            <Text
+              style={[styles.readerText, { fontSize, lineHeight: Math.round(fontSize * 1.7) }]}
+              selectable
+            >
+              {(verses ?? []).map((verse, i) => (
+                <Text key={i}>
+                  <Text style={[styles.verseNum, { fontSize: Math.round(fontSize * 0.62) }]}>
+                    {i + 1}
+                    {' '}
                   </Text>
-                  <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
-                </TouchableOpacity>
-              ) : null
-            }
-          />
-        </>
-      )}
+                  {verse}{' '}
+                </Text>
+              ))}
+            </Text>
 
-      {view === 'books' && (
-        <View style={styles.readingReminder}>
-          <Ionicons name="notifications" size={20} color={COLORS.secondary} />
-          <View style={styles.reminderInfo}>
-            <Text style={styles.reminderTitle}>Lembrete de Leitura</Text>
-            <Text style={styles.reminderText}>Ativado · Todos os dias às 19:00</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.gray} />
-        </View>
+            <View style={styles.readerNav}>
+              {(() => {
+                const prev = neighbor(selectedBook, selectedChapter, -1);
+                const next = neighbor(selectedBook, selectedChapter, 1);
+                const label = (p: Position) => `${bookBySlug(p.slug)?.name} ${p.chapter}`;
+                return (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.navButton, !prev && styles.navHidden]}
+                      disabled={!prev}
+                      onPress={() => prev && openPosition(prev)}
+                    >
+                      <Ionicons name="chevron-back" size={18} color={colors.primary} />
+                      <Text style={styles.navText} numberOfLines={1}>
+                        {prev ? label(prev) : ''}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.navButton, styles.navNext, !next && styles.navHidden]}
+                      disabled={!next}
+                      onPress={() => next && openPosition(next)}
+                    >
+                      <Text style={styles.navTextNext} numberOfLines={1}>
+                        {next ? label(next) : ''}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={18} color={colors.white} />
+                    </TouchableOpacity>
+                  </>
+                );
+              })()}
+            </View>
+          </ScrollView>
+        </>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  dailyVerseCard: {
-    backgroundColor: COLORS.white,
-    margin: SIZES.padding,
-    borderRadius: SIZES.radius,
-    padding: 20,
-    elevation: 4,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.gold,
-  },
-  verseHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  verseLabel: {
-    fontSize: SIZES.font,
-    fontWeight: '700',
-    color: COLORS.gold,
-  },
-  verseText: {
-    fontSize: SIZES.large,
-    fontStyle: 'italic',
-    color: COLORS.text,
-    lineHeight: 28,
-  },
-  verseReference: {
-    fontSize: SIZES.medium,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginTop: 12,
-    textAlign: 'right',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    marginHorizontal: SIZES.padding,
-    marginBottom: 12,
-    borderRadius: SIZES.radius,
-    paddingHorizontal: 16,
-    height: 48,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: SIZES.medium,
-    color: COLORS.text,
-  },
-  breadcrumb: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SIZES.padding,
-    paddingTop: 16,
-    marginBottom: 8,
-    gap: 4,
-  },
-  breadcrumbText: {
-    fontSize: SIZES.font,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  breadcrumbCurrent: {
-    fontSize: SIZES.font,
-    color: COLORS.text,
-    fontWeight: '600',
-  },
-  listContent: {
-    paddingHorizontal: SIZES.padding,
-    paddingBottom: 100,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: COLORS.textLight,
-    fontSize: SIZES.font,
-    marginTop: 32,
-  },
-  bookItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: 16,
-    marginBottom: 8,
-  },
-  bookIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: COLORS.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  bookInfo: {
-    flex: 1,
-  },
-  bookName: {
-    fontSize: SIZES.medium,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  bookChapters: {
-    fontSize: SIZES.small,
-    color: COLORS.textLight,
-    marginTop: 2,
-  },
-  chapterSection: {
-    flex: 1,
-    paddingHorizontal: SIZES.padding,
-  },
-  chapterTitle: {
-    fontSize: SIZES.large,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 12,
-  },
-  chapterGrid: {
-    paddingBottom: 24,
-  },
-  chapterItem: {
-    flex: 1,
-    margin: 4,
-    aspectRatio: 1,
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    justifyContent: 'center',
-    alignItems: 'center',
-    maxWidth: '18%',
-  },
-  chapterNumber: {
-    fontSize: SIZES.medium,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  readerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    paddingHorizontal: SIZES.padding,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  readerBack: {
-    paddingRight: 8,
-  },
-  readerTitleArea: {
-    flex: 1,
-  },
-  readerTitle: {
-    fontSize: SIZES.large,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  readerSubtitle: {
-    fontSize: SIZES.small,
-    color: COLORS.textLight,
-    marginTop: 2,
-  },
-  readerNav: {
-    paddingLeft: 10,
-  },
-  readerContent: {
-    padding: SIZES.padding,
-    paddingBottom: 40,
-  },
-  verseRow: {
-    flexDirection: 'row',
-    marginBottom: 14,
-  },
-  verseNumber: {
-    fontSize: SIZES.small,
-    fontWeight: '700',
-    color: COLORS.secondary,
-    width: 28,
-    paddingTop: 3,
-  },
-  verseBody: {
-    flex: 1,
-    fontSize: SIZES.medium,
-    color: COLORS.text,
-    lineHeight: 26,
-  },
-  nextChapterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: COLORS.primary,
-    borderRadius: SIZES.radius,
-    paddingVertical: 14,
-    marginTop: 12,
-  },
-  nextChapterText: {
-    fontSize: SIZES.medium,
-    fontWeight: '600',
-    color: COLORS.white,
-  },
-  readingReminder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    padding: SIZES.padding,
-    margin: SIZES.padding,
-    borderRadius: SIZES.radius,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  reminderInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  reminderTitle: {
-    fontSize: SIZES.font,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  reminderText: {
-    fontSize: SIZES.small,
-    color: COLORS.textLight,
-    marginTop: 2,
-  },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    booksContent: {
+      padding: SIZES.padding,
+      paddingBottom: 32,
+    },
+    continueCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.primary,
+      borderRadius: SIZES.radius,
+      padding: SIZES.padding,
+      marginBottom: 12,
+    },
+    continueInfo: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    continueLabel: {
+      ...FONTS.mono,
+      fontSize: SIZES.small,
+      color: c.white + 'CC',
+    },
+    continueTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.xl,
+      color: c.white,
+      marginTop: 2,
+    },
+    verseCard: {
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      padding: SIZES.padding,
+      borderLeftWidth: 4,
+      borderLeftColor: c.gold,
+      marginBottom: 12,
+    },
+    verseHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 8,
+    },
+    verseLabel: {
+      ...FONTS.medium,
+      fontSize: SIZES.small,
+      color: c.gold,
+    },
+    verseText: {
+      ...FONTS.regular,
+      fontSize: SIZES.medium,
+      fontStyle: 'italic',
+      color: c.text,
+      lineHeight: 24,
+    },
+    verseReference: {
+      ...FONTS.mono,
+      fontSize: SIZES.small,
+      color: c.primary,
+      marginTop: 8,
+      textAlign: 'right',
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingHorizontal: 14,
+      height: 46,
+      marginBottom: 12,
+    },
+    searchInput: {
+      ...FONTS.regular,
+      flex: 1,
+      marginLeft: 10,
+      fontSize: SIZES.medium,
+      color: c.text,
+    },
+    segment: {
+      flexDirection: 'row',
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      padding: 4,
+      marginBottom: 4,
+    },
+    segmentItem: {
+      flex: 1,
+      paddingVertical: 9,
+      borderRadius: SIZES.radius - 4,
+      alignItems: 'center',
+    },
+    segmentItemActive: {
+      backgroundColor: c.primary,
+    },
+    segmentText: {
+      ...FONTS.medium,
+      fontSize: SIZES.font,
+      color: c.textLight,
+    },
+    segmentTextActive: {
+      color: c.white,
+    },
+    category: {
+      marginTop: 16,
+    },
+    categoryTitle: {
+      ...FONTS.mono,
+      fontSize: SIZES.small,
+      color: c.textLight,
+      letterSpacing: 1,
+      marginBottom: 8,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginHorizontal: -4,
+    },
+    gridCell: {
+      width: '33.333%',
+      padding: 4,
+    },
+    bookTile: {
+      backgroundColor: c.card,
+      borderRadius: SIZES.radius,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    bookAbbrev: {
+      ...FONTS.bold,
+      fontSize: SIZES.extraLarge,
+      color: c.primary,
+    },
+    bookName: {
+      ...FONTS.medium,
+      fontSize: SIZES.small,
+      color: c.text,
+      marginTop: 2,
+    },
+    bookChapters: {
+      ...FONTS.mono,
+      fontSize: 10,
+      color: c.textLight,
+      marginTop: 2,
+    },
+    emptyText: {
+      ...FONTS.regular,
+      textAlign: 'center',
+      color: c.textLight,
+      fontSize: SIZES.font,
+      marginTop: 32,
+    },
+    bar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.card,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    barBack: {
+      paddingRight: 6,
+    },
+    barInfo: {
+      flex: 1,
+    },
+    barTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.large,
+      color: c.text,
+    },
+    barSubtitle: {
+      ...FONTS.mono,
+      fontSize: 11,
+      color: c.textLight,
+      marginTop: 1,
+    },
+    chapterGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      padding: SIZES.padding - 4,
+      paddingBottom: 32,
+    },
+    chapterCell: {
+      width: '16.666%',
+      padding: 4,
+    },
+    chapterItem: {
+      aspectRatio: 1,
+      backgroundColor: c.card,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    chapterItemLast: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    chapterNumber: {
+      ...FONTS.medium,
+      fontSize: SIZES.medium,
+      color: c.text,
+    },
+    chapterNumberLast: {
+      color: c.white,
+    },
+    fontButton: {
+      width: 40,
+      height: 36,
+      borderRadius: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    fontButtonActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    fontButtonText: {
+      ...FONTS.bold,
+      fontSize: SIZES.medium,
+      color: c.primary,
+    },
+    fontButtonTextActive: {
+      color: c.white,
+    },
+    fontPanel: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 24,
+      backgroundColor: c.card,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    fontStep: {
+      width: 56,
+      height: 40,
+      borderRadius: 8,
+      backgroundColor: c.lightGray,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fontStepText: {
+      ...FONTS.bold,
+      color: c.text,
+    },
+    fontValue: {
+      ...FONTS.mono,
+      fontSize: SIZES.font,
+      color: c.textLight,
+      minWidth: 48,
+      textAlign: 'center',
+    },
+    readerContent: {
+      paddingHorizontal: 22,
+      paddingTop: 24,
+      paddingBottom: 40,
+    },
+    readerBook: {
+      ...FONTS.mono,
+      fontSize: SIZES.small,
+      color: c.textLight,
+      letterSpacing: 2,
+      textAlign: 'center',
+    },
+    readerChapter: {
+      ...FONTS.bold,
+      fontSize: 56,
+      color: c.primary,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    readerText: {
+      ...FONTS.regular,
+      color: c.text,
+    },
+    verseNum: {
+      ...FONTS.bold,
+      color: c.primary,
+    },
+    readerNav: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 32,
+    },
+    navButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingVertical: 14,
+      paddingHorizontal: 10,
+      borderRadius: SIZES.radius,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.card,
+    },
+    navNext: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    navHidden: {
+      opacity: 0,
+    },
+    navText: {
+      ...FONTS.medium,
+      fontSize: SIZES.font,
+      color: c.primary,
+      flexShrink: 1,
+    },
+    navTextNext: {
+      ...FONTS.medium,
+      fontSize: SIZES.font,
+      color: c.white,
+      flexShrink: 1,
+    },
+  });
