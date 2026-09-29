@@ -82,13 +82,43 @@ toda tabela nova precisa de **Row Level Security ligada** e de políticas que
 limitem cada usuário às próprias linhas — sem isso, a chave pública do app lê
 a tabela inteira.
 
-## 4. Antes de publicar: e-mail próprio
+## 4. Envio dos e-mails (SMTP)
 
-O envio de e-mails embutido do Supabase tem limite baixo (poucos por hora) e
-serve só para testes. Para produção, configure um SMTP em **Project Settings ›
-Authentication › SMTP Settings** — por exemplo [Resend](https://resend.com) ou
-[Brevo](https://www.brevo.com), ambos com plano gratuito — usando um remetente
-como `nao-responda@casadeadoracao.com.br`.
+Os cadastros ficam só no Supabase (**Authentication › Users**). Mas o envio de
+e-mails embutido do Supabase **só entrega para a equipe do projeto** e tem
+limite de poucos por hora: para qualquer pessoa receber o código, o Supabase
+precisa de um SMTP — um "carteiro", que só transporta o e-mail.
+
+### Opção recomendada: Gmail (grátis, sem domínio)
+
+1. Use um Gmail da igreja (ex.: `casadeadoracao.app@gmail.com`).
+2. Nele, ative a **Verificação em duas etapas** (myaccount.google.com › Segurança).
+3. Gere uma **Senha de app** em https://myaccount.google.com/apppasswords
+   (nome: `Supabase`) e copie as 16 letras.
+4. Em **Project Settings › Authentication › SMTP Settings**, ligue
+   **Enable custom SMTP** e preencha:
+
+   | Campo | Valor |
+   |---|---|
+   | Sender email | o Gmail |
+   | Sender name | `Casa de Adoração` |
+   | Host | `smtp.gmail.com` |
+   | Port | `587` |
+   | Username | o Gmail completo |
+   | Password | a senha de app (não a senha normal) |
+
+5. Em **Authentication › Rate Limits**, ajuste *emails sent per hour* (ex.: 100).
+6. Teste criando conta com um e-mail que **não** seja da equipe do projeto.
+
+O Gmail aceita cerca de 500 envios por dia — muito acima do uso da igreja.
+Se o código não chegar, veja **Logs › Auth** no painel e a pasta de spam.
+
+### Alternativas
+
+- [Brevo](https://www.brevo.com): grátis até 300/dia, aceita remetente
+  verificado sem domínio próprio.
+- [Resend](https://resend.com): exige **domínio verificado** para entregar a
+  qualquer pessoa.
 
 > **Resend em modo de teste** (remetente `onboarding@resend.dev`, sem domínio
 > verificado) só entrega e-mails **para o endereço dono da conta Resend**.
