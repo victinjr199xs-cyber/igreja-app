@@ -88,6 +88,24 @@ autorização por escrito às emissoras. Para trocar ou adicionar, edite
 Rádio ao vivo não tem duração, então a tela não mostra barra de progresso. Os
 botões ⏮ ⏭ trocam de estação.
 
+### Segundo plano e tela de bloqueio
+
+A rádio continua tocando com o app minimizado ou a tela bloqueada, e aparece
+na notificação de mídia (Android) e na tela de bloqueio / Central de Controle
+(iOS) com play/pause, nome da estação e o ícone do app como capa.
+
+Três peças fazem isso funcionar:
+
+- `setAudioModeAsync({ shouldPlayInBackground: true, interruptionMode: 'doNotMix' })`
+- `player.setActiveForLockScreen(...)` a cada player novo — no Android é o que
+  mantém o serviço de mídia em primeiro plano; sem ele o sistema corta o áudio
+  após ~3 min
+- o plugin `expo-audio` no `app.json`, que adiciona `UIBackgroundModes: audio`
+  no iOS e o serviço `mediaPlayback` no Android
+
+O plugin só vale em build nativo (EAS ou `npx expo run:*`). No Expo Go, o
+comportamento depende do que o próprio Expo Go já traz configurado.
+
 ## Pregações
 
 A aba lê o canal [Casa de Adoração Official](https://www.youtube.com/@casadeadoracaoofficial)

@@ -50,6 +50,11 @@ const RADIO_STATIONS = [
 
 type Station = (typeof RADIO_STATIONS)[number];
 
+// Capa exibida na notificação e na tela de bloqueio. Precisa ser uma URL
+// remota; o repositório é público, então o ícone do app serve.
+const ARTWORK_URL =
+  'https://raw.githubusercontent.com/victinjr199xs-cyber/igreja-app/main/assets/icon.png';
+
 export default function RadioScreen() {
   const [selectedStation, setSelectedStation] = useState<Station>(RADIO_STATIONS[0]);
   // Intenção do usuário, separada de status.playing: ao trocar de estação o
@@ -61,15 +66,42 @@ export default function RadioScreen() {
   const player = useAudioPlayer(selectedStation.url);
   const status = useAudioPlayerStatus(player);
   const isPlaying = status.playing;
-  const isConnecting = wantsToPlay && !isPlaying;
+  // Pausado pela notificação ou tela de bloqueio o stream segue carregado e
+  // sem buffer: isso é "pausado", não "conectando".
+  const isConnecting = wantsToPlay && !isPlaying && (status.isBuffering || !status.isLoaded);
 
   useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    // shouldPlayInBackground mantém o áudio com o app minimizado ou a tela
+    // bloqueada. Os controles da tela de bloqueio exigem 'doNotMix'.
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'doNotMix',
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (wantsToPlay) player.play();
   }, [player]);
+
+  // Notificação de mídia (Android) e controles da tela de bloqueio / Central de
+  // Controle (iOS). No Android é também o que mantém o serviço em primeiro
+  // plano: sem ele, o sistema corta o áudio em segundo plano após ~3 min.
+  // Cada player novo (troca de estação) precisa ser registrado de novo.
+  useEffect(() => {
+    if (!wantsToPlay) return;
+    player.setActiveForLockScreen(
+      true,
+      {
+        title: selectedStation.name,
+        artist: selectedStation.description,
+        albumTitle: 'Igreja App · Rádio',
+        artworkUrl: ARTWORK_URL,
+      },
+      // Rádio ao vivo não tem como avançar ou voltar.
+      { showSeekForward: false, showSeekBackward: false },
+    );
+  }, [player, wantsToPlay]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -93,7 +125,9 @@ export default function RadioScreen() {
   }, [isPlaying]);
 
   const togglePlayback = () => {
-    if (wantsToPlay) {
+    // Decide pelo estado real, não só pela intenção: o áudio pode ter sido
+    // pausado ou retomado pela notificação sem passar por esta tela.
+    if (isPlaying || isConnecting) {
       setWantsToPlay(false);
       player.pause();
     } else {
@@ -114,6 +148,7 @@ export default function RadioScreen() {
   const skipStation = (step: 1 | -1) => {
     const index = RADIO_STATIONS.findIndex((s) => s.id === selectedStation.id);
     const next = RADIO_STATIONS[(index + step + RADIO_STATIONS.length) % RADIO_STATIONS.length];
+    setWantsToPlay(isPlaying || isConnecting);
     setSelectedStation(next);
   };
 
