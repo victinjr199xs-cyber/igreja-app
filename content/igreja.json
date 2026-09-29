@@ -1,0 +1,11 @@
+{
+  "avisos": [
+    {
+      "id": "boas-vindas-app",
+      "titulo": "Bem-vindo ao app da Casa de Adoração!",
+      "texto": "Aqui você acompanha os cultos, as pregações, a rádio e a Bíblia. Compartilhe com quem você ama.",
+      "ate": "2026-10-31"
+    }
+  ],
+  "eventos": []
+}

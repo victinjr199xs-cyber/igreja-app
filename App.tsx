@@ -12,6 +12,7 @@ import { FiraSans_700Bold } from '@expo-google-fonts/fira-sans/700Bold';
 import { FiraMono_400Regular } from '@expo-google-fonts/fira-mono/400Regular';
 import AppNavigator from './src/navigation/AppNavigator';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
+import { ContentProvider } from './src/context/ContentContext';
 import { registerForPushNotificationsAsync } from './src/services/notificationService';
 
 // Segura a splash até as fontes e as preferências carregarem: sem isso a logo
@@ -55,7 +56,9 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <SettingsProvider>
-          <Root />
+          <ContentProvider>
+            <Root />
+          </ContentProvider>
         </SettingsProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

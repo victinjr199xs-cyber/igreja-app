@@ -9,7 +9,7 @@ import ChurchContactCard from '../components/ChurchContactCard';
 import {
   CHURCH_INFO,
   WEEKLY_EVENTS,
-  SPECIAL_EVENTS,
+  allSpecialEvents,
   Occurrence,
   dateKey,
   eventsOn,
@@ -18,6 +18,7 @@ import {
   nextDateOf,
 } from '../data/churchData';
 import { openChurchMap } from '../services/contactService';
+import { useChurchContent } from '../context/ContentContext';
 import { addToPhoneCalendar, shareInvite } from '../services/agendaService';
 
 LocaleConfig.locales['pt-br'] = {
@@ -60,6 +61,8 @@ const parseKey = (key: string) => {
 
 export default function CalendarScreen() {
   const { styles, colors, isDark } = useThemedStyles(makeStyles);
+  // Assina o conteúdo online: quando os eventos chegam, a tela redesenha.
+  const content = useChurchContent();
   const [now, setNow] = useState(() => new Date());
   const [selected, setSelected] = useState(() => dateKey(new Date()));
   const [visibleMonth, setVisibleMonth] = useState(() => {
@@ -90,12 +93,12 @@ export default function CalendarScreen() {
     }
     marks[selected] = { ...(marks[selected] ?? {}), selected: true, selectedColor: colors.primary };
     return marks;
-  }, [visibleMonth, selected, colors]);
+  }, [visibleMonth, selected, colors, content]);
 
   const selectedDate = parseKey(selected);
   const selectedEvents = eventsOn(selectedDate);
 
-  const upcomingSpecials = SPECIAL_EVENTS.filter((e) => parseKey(e.date) >= parseKey(dateKey(now)))
+  const upcomingSpecials = allSpecialEvents().filter((e) => parseKey(e.date) >= parseKey(dateKey(now)))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 5);
 

@@ -78,6 +78,20 @@ export interface SpecialEvent extends Omit<ChurchEvent, 'day'> {
 //   },
 export const SPECIAL_EVENTS: SpecialEvent[] = [];
 
+// Eventos vindos de content/igreja.json (editável no GitHub, sem publicar o
+// app). Preenchidos pelo ContentProvider.
+let remoteSpecialEvents: SpecialEvent[] = [];
+
+export function setRemoteSpecialEvents(list: SpecialEvent[]) {
+  remoteSpecialEvents = list;
+}
+
+/** Eventos especiais do código + os do arquivo online, sem repetir id. */
+export function allSpecialEvents(): SpecialEvent[] {
+  const ids = new Set(SPECIAL_EVENTS.map((e) => e.id));
+  return [...SPECIAL_EVENTS, ...remoteSpecialEvents.filter((e) => !ids.has(e.id))];
+}
+
 export interface Occurrence {
   event: ChurchEvent | SpecialEvent;
   /** Dia e hora de início desta ocorrência. */
@@ -106,7 +120,7 @@ export function eventsOn(day: Date): Occurrence[] {
       date: at(day, event.startTime),
       special: false,
     })),
-    ...SPECIAL_EVENTS.filter((e) => e.date === key).map((event) => ({
+    ...allSpecialEvents().filter((e) => e.date === key).map((event) => ({
       event,
       date: at(day, event.startTime),
       special: true,

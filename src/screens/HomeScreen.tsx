@@ -35,6 +35,7 @@ import { RADIO_STATIONS, RadioStation } from '../data/radioStations';
 import { fetchCultos, inProgress, loadHistory, HistoryEntry, Video } from '../services/youtubeService';
 import { whatsappChurch } from '../services/contactService';
 import { GIVING_ENABLED } from './GiveScreen';
+import { activeAnnouncements, useChurchContent } from '../context/ContentContext';
 
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
@@ -101,6 +102,11 @@ export default function HomeScreen() {
   const [now, setNow] = useState(() => new Date());
   const [latest, setLatest] = useState<Video | null>(null);
   const [cont, setCont] = useState<ContinueState>({ bible: null, video: null, radio: null });
+
+  // Avisos e eventos editáveis (content/igreja.json); também faz a tela
+  // redesenhar quando um evento especial online muda o "próximo culto".
+  const content = useChurchContent();
+  const announcements = activeAnnouncements(content.announcements, now);
 
   const live = getCurrentEvent(now);
   const next = getNextEvent(now);
@@ -227,6 +233,28 @@ export default function HomeScreen() {
             <Ionicons name="chevron-forward" size={22} color="#ffffffCC" />
           </TouchableOpacity>
         )
+      )}
+
+      {announcements.length > 0 && (
+        <>
+          <SectionTitle styles={styles} title="Avisos" />
+          {announcements.map((a) => (
+            <View key={a.id} style={styles.notice}>
+              <View style={styles.noticeIcon}>
+                <Ionicons name="megaphone" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.noticeTitle}>{a.title}</Text>
+                {a.text ? <Text style={styles.noticeText}>{a.text}</Text> : null}
+                {a.link && (
+                  <TouchableOpacity onPress={() => Linking.openURL(a.link!)} hitSlop={8}>
+                    <Text style={styles.noticeLink}>Saiba mais ›</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))}
+        </>
       )}
 
       {hasContinue && (
@@ -664,6 +692,45 @@ const makeStyles = (c: Palette) =>
       fontSize: 11,
       color: c.textLight,
       marginTop: 2,
+    },
+    notice: {
+      flexDirection: 'row',
+      gap: 12,
+      backgroundColor: c.card,
+      marginHorizontal: SIZES.padding,
+      marginBottom: 10,
+      borderRadius: SIZES.radius + 4,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderLeftWidth: 4,
+      borderLeftColor: c.primary,
+    },
+    noticeIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: c.primary + '18',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    noticeTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.medium,
+      color: c.text,
+    },
+    noticeText: {
+      ...FONTS.regular,
+      fontSize: SIZES.font,
+      color: c.textLight,
+      marginTop: 3,
+      lineHeight: 20,
+    },
+    noticeLink: {
+      ...FONTS.medium,
+      fontSize: SIZES.font,
+      color: c.primary,
+      marginTop: 8,
     },
     participate: {
       flexDirection: 'row',
