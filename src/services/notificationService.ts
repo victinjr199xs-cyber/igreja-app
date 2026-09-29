@@ -2,7 +2,12 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { DAILY_VERSES, WEEKLY_EVENTS } from '../data/churchData';
+import { WEEKLY_EVENTS } from '../data/churchData';
+import { verseOfDay } from '../data/dailyVerses';
+
+// Dias de versículo agendados de uma vez (+ leitura e cultos, bem abaixo do
+// limite de 64 do iOS).
+const VERSE_DAYS_AHEAD = 30;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -75,10 +80,15 @@ export async function scheduleNotifications(prefs: NotificationPrefs): Promise<v
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   if (prefs.notifyDailyVerse) {
-    // Um agendamento semanal por dia da semana, cada um com o versículo que o
-    // app mostra naquele dia. Um DAILY único repetiria o mesmo texto sempre.
-    for (let day = 0; day < 7; day++) {
-      const verse = DAILY_VERSES[day % DAILY_VERSES.length];
+    // Um agendamento por data, cada um com o versículo daquele dia — um DAILY
+    // repetiria o mesmo texto. O iOS aceita no máximo 64 notificações
+    // pendentes, então agenda só os próximos dias; como o app reagenda a cada
+    // abertura, a janela vai andando junto.
+    const now = new Date();
+    for (let i = 0; i < VERSE_DAYS_AHEAD; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, 7, 0, 0);
+      if (date <= now) continue;
+      const verse = verseOfDay(date);
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '✝️ Versículo do Dia',
@@ -86,13 +96,7 @@ export async function scheduleNotifications(prefs: NotificationPrefs): Promise<v
           data: { verse: verse.reference },
           sound: true,
         },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-          // Expo conta de 1 (domingo) a 7; Date.getDay() de 0 a 6.
-          weekday: day + 1,
-          hour: 7,
-          minute: 0,
-        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
       });
     }
   }

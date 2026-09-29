@@ -24,7 +24,7 @@ import {
   BIBLE_FONT_MIN,
 } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
-import { DAILY_VERSES } from '../data/churchData';
+import { verseOfDay } from '../data/dailyVerses';
 import { BIBLE_BOOKS, BibleBook, Testament, loadBookChapters } from '../data/bible/books';
 import { BOOK_CATEGORIES, categoryOf } from '../data/bible/categories';
 
@@ -61,7 +61,7 @@ export default function BibleScreen() {
   const [showFontPanel, setShowFontPanel] = useState(false);
   const readerRef = useRef<ScrollView>(null);
 
-  const [dailyVerse] = useState(() => DAILY_VERSES[new Date().getDay() % DAILY_VERSES.length]);
+  const [dailyVerse] = useState(() => verseOfDay());
 
   // A vista atual é derivada da seleção, e não guardada à parte, para as duas
   // não saírem de sincronia.
@@ -156,14 +156,18 @@ export default function BibleScreen() {
           )}
 
           {!query && (
-            <View style={styles.verseCard}>
+            <TouchableOpacity
+              style={styles.verseCard}
+              activeOpacity={0.8}
+              onPress={() => openPosition({ slug: dailyVerse.slug, chapter: dailyVerse.chapter })}
+            >
               <View style={styles.verseHeader}>
                 <Ionicons name="sparkles" size={16} color={colors.gold} />
                 <Text style={styles.verseLabel}>Versículo do dia</Text>
               </View>
               <Text style={styles.verseText}>{dailyVerse.text}</Text>
-              <Text style={styles.verseReference}>{dailyVerse.reference}</Text>
-            </View>
+              <Text style={styles.verseReference}>{dailyVerse.reference} · ler o capítulo ›</Text>
+            </TouchableOpacity>
           )}
 
           <View style={styles.searchContainer}>

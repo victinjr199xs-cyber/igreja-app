@@ -25,12 +25,12 @@ import ChurchLogo from '../components/ChurchLogo';
 import ChurchContactCard from '../components/ChurchContactCard';
 import {
   CHURCH_INFO,
-  DAILY_VERSES,
   WEEKLY_EVENTS,
   getCurrentEvent,
   getNextEvent,
 } from '../data/churchData';
 import { BIBLE_BOOKS } from '../data/bible/books';
+import { verseOfDay } from '../data/dailyVerses';
 import { RADIO_STATIONS, RadioStation } from '../data/radioStations';
 import { fetchCultos, inProgress, loadHistory, HistoryEntry, Video } from '../services/youtubeService';
 import { whatsappChurch } from '../services/contactService';
@@ -103,7 +103,7 @@ export default function HomeScreen() {
 
   const live = getCurrentEvent(now);
   const next = getNextEvent(now);
-  const verse = DAILY_VERSES[now.getDay() % DAILY_VERSES.length];
+  const verse = verseOfDay(now);
 
   useEffect(() => {
     // Mesma busca (e cache) da aba Pregações. Sem chave ou sem rede, o card
@@ -328,7 +328,15 @@ export default function HomeScreen() {
         <Ionicons name="sparkles" size={20} color={colors.gold} style={styles.verseIcon} />
         <Text style={styles.verseText}>“{verse.text}”</Text>
         <View style={styles.verseFooter}>
-          <Text style={styles.verseRef}>{verse.reference}</Text>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('Bíblia', { open: { slug: verse.slug, chapter: verse.chapter } })
+            }
+            hitSlop={8}
+            accessibilityLabel={`Ler ${verse.reference} no capítulo`}
+          >
+            <Text style={styles.verseRef}>{verse.reference} ›</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.verseShare} onPress={shareVerse} hitSlop={8}>
             <Ionicons name="share-social-outline" size={18} color={colors.primary} />
             <Text style={styles.verseShareText}>Compartilhar</Text>
