@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,31 +7,62 @@ import {
   TouchableOpacity,
   Image,
   Linking,
+  Share,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  NavigationProp,
+  ParamListBase,
+} from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SIZES, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
 import ChurchLogo from '../components/ChurchLogo';
 import ChurchContactCard from '../components/ChurchContactCard';
-import { DAILY_VERSES, WEEKLY_EVENTS, getNextEvent } from '../data/churchData';
-import { fetchCultos, Video } from '../services/youtubeService';
-
-const INSTAGRAM_URL = 'https://www.instagram.com/casadeadoracaooficial/';
-const YOUTUBE_URL = 'https://www.youtube.com/@casadeadoracaoofficial';
+import {
+  CHURCH_INFO,
+  DAILY_VERSES,
+  WEEKLY_EVENTS,
+  getCurrentEvent,
+  getNextEvent,
+} from '../data/churchData';
+import { BIBLE_BOOKS } from '../data/bible/books';
+import { RADIO_STATIONS, RadioStation } from '../data/radioStations';
+import { fetchCultos, inProgress, loadHistory, HistoryEntry, Video } from '../services/youtubeService';
+import { whatsappChurch } from '../services/contactService';
 
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-
-const QUICK_LINKS: { tab: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { tab: 'Pregações', label: 'Pregações', icon: 'play-circle-outline' },
-  { tab: 'Rádio', label: 'Rádio', icon: 'radio-outline' },
-  { tab: 'Bíblia', label: 'Bíblia', icon: 'book-outline' },
-  { tab: 'Calendário', label: 'Programação', icon: 'calendar-outline' },
+const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+const MONTHS = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
 ];
 
+const QUICK_LINKS: { tab: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { tab: 'Pregações', label: 'Pregações', icon: 'play' },
+  { tab: 'Rádio', label: 'Rádio', icon: 'radio' },
+  { tab: 'Bíblia', label: 'Bíblia', icon: 'book' },
+  { tab: 'Calendário', label: 'Agenda', icon: 'calendar' },
+];
+
+// Mesmas chaves gravadas pelas abas Bíblia e Rádio.
+const BIBLE_LAST_KEY = 'bible:last';
+const RADIO_LAST_KEY = 'radio:last';
+
+function greeting(now: Date) {
+  const h = now.getHours();
+  if (h < 5) return 'Boa noite';
+  if (h < 12) return 'Bom dia';
+  if (h < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
 function describeWhen(date: Date, now: Date): string {
-  const time = date.toTimeString().slice(0, 5);
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((startOfDay(date) - startOfDay(now)) / 86400000);
   if (days === 0) return `Hoje, às ${time}`;
@@ -39,18 +70,45 @@ function describeWhen(date: Date, now: Date): string {
   return `${DAYS_FULL[date.getDay()]}, às ${time}`;
 }
 
+/** "faltam 2 d 4 h", "faltam 3 h 10 min", "faltam 25 min". */
+function timeLeft(target: Date, now: Date): string {
+  const total = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 60000));
+  const d = Math.floor(total / 1440);
+  const h = Math.floor((total % 1440) / 60);
+  const m = total % 60;
+  if (d > 0) return `faltam ${d} d ${h} h`;
+  if (h > 0) return `faltam ${h} h ${m} min`;
+  return `faltam ${m} min`;
+}
+
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  return `${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`;
+}
+
+function formatClock(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
+interface ContinueState {
+  bible: { slug: string; chapter: number; name: string } | null;
+  video: HistoryEntry | null;
+  radio: RadioStation | null;
 }
 
 export default function HomeScreen() {
   const { styles, colors } = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
-  const [now] = useState(() => new Date());
+  const [now, setNow] = useState(() => new Date());
   const [latest, setLatest] = useState<Video | null>(null);
+  const [cont, setCont] = useState<ContinueState>({ bible: null, video: null, radio: null });
 
+  const live = getCurrentEvent(now);
   const next = getNextEvent(now);
   const verse = DAILY_VERSES[now.getDay() % DAILY_VERSES.length];
 
@@ -62,300 +120,663 @@ export default function HomeScreen() {
       .catch(() => {});
   }, []);
 
+  // A Início fica montada enquanto a pessoa usa as outras abas: o "continue de
+  // onde parou" e o relógio se atualizam sempre que ela volta para cá.
+  useFocusEffect(
+    useCallback(() => {
+      setNow(new Date());
+      Promise.all([
+        AsyncStorage.getItem(BIBLE_LAST_KEY).catch(() => null),
+        loadHistory(),
+        AsyncStorage.getItem(RADIO_LAST_KEY).catch(() => null),
+      ]).then(([bibleRaw, history, radioId]) => {
+        let bible: ContinueState['bible'] = null;
+        try {
+          const pos = bibleRaw ? JSON.parse(bibleRaw) : null;
+          const book = pos && BIBLE_BOOKS.find((b) => b.slug === pos.slug);
+          if (book) bible = { slug: book.slug, chapter: pos.chapter, name: book.name };
+        } catch {
+          bible = null;
+        }
+        setCont({
+          bible,
+          video: inProgress(history)[0] ?? null,
+          radio: RADIO_STATIONS.find((s) => s.id === radioId) ?? null,
+        });
+      });
+    }, [])
+  );
+
+  const shareVerse = () => {
+    Share.share({
+      message: `“${verse.text}”\n— ${verse.reference}\n\n${CHURCH_INFO.name} · Reino de Sacerdotes`,
+    }).catch(() => {});
+  };
+
+  const hasContinue = cont.bible || cont.video || cont.radio;
+
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingBottom: 32 }}
+      contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-
-      <View style={[styles.hero, { paddingTop: insets.top + 32 }]}>
-        <TouchableOpacity
-          style={[styles.settingsButton, { top: insets.top + 8 }]}
-          onPress={() => navigation.navigate('Configurações')}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Configurações"
-        >
-          <Ionicons name="settings-outline" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <ChurchLogo size="large" align="center" />
-        {/* Como no banner: horários com a barra vinho à esquerda. */}
-        <View style={styles.schedule}>
-          <View style={styles.scheduleBar} />
+      {/* Topo: saudação, logo e horários como no banner do canal. */}
+      <View style={[styles.hero, { paddingTop: insets.top + 14 }]}>
+        <View style={styles.heroTop}>
           <View>
-            {WEEKLY_EVENTS.map((e) => (
-              <Text key={e.id} style={styles.scheduleText}>
-                {DAYS_FULL[e.day]} {e.startTime.replace(':00', '')}h
-              </Text>
-            ))}
+            <Text style={styles.greeting}>{greeting(now)} 👋</Text>
+            <Text style={styles.today}>
+              {WEEKDAYS[now.getDay()]}, {now.getDate()} de {MONTHS[now.getMonth()]}
+            </Text>
           </View>
+          <TouchableOpacity
+            style={styles.gear}
+            onPress={() => navigation.navigate('Configurações')}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Configurações"
+          >
+            <Ionicons name="settings-outline" size={22} color={colors.text} />
+          </TouchableOpacity>
         </View>
-      </View>
 
-      {next && (
-        <TouchableOpacity
-          style={[styles.card, styles.nextCard]}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('Calendário')}
-        >
-          <Ionicons name="time-outline" size={28} color={colors.white} />
-          <View style={styles.nextInfo}>
-            <Text style={styles.nextLabel}>PRÓXIMO CULTO</Text>
-            <Text style={styles.nextTitle}>{describeWhen(next.date, now)}</Text>
-            <Text style={styles.nextPlace}>{next.event.location}</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-
-      <View style={[styles.card, styles.verseCard]}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="sparkles" size={18} color={colors.gold} />
-          <Text style={styles.cardLabel}>Versículo do dia</Text>
-        </View>
-        <Text style={styles.verseText}>{verse.text}</Text>
-        <Text style={styles.verseRef}>— {verse.reference}</Text>
-      </View>
-
-      {latest && (
-        <TouchableOpacity
-          style={styles.card}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('Pregações')}
-        >
-          <View style={styles.cardHeader}>
-            <Ionicons name="play-circle" size={18} color={colors.primary} />
-            <Text style={styles.cardLabel}>Última ministração</Text>
-          </View>
-          {latest.thumbnail && (
+        <View style={styles.logoBox}>
+          <ChurchLogo size="large" align="center" />
+          <View style={styles.schedule}>
+            <View style={styles.scheduleBar} />
             <View>
-              <Image source={{ uri: latest.thumbnail }} style={styles.thumb} />
-              <View style={styles.playOverlay}>
-                <Ionicons name="play" size={28} color={colors.white} />
-              </View>
+              {WEEKLY_EVENTS.map((e) => (
+                <Text key={e.id} style={styles.scheduleText}>
+                  {DAYS_FULL[e.day]} {e.startTime.replace(':00', '')}h
+                </Text>
+              ))}
             </View>
-          )}
-          <Text style={styles.videoTitle} numberOfLines={2}>
-            {latest.title}
-          </Text>
-          <Text style={styles.videoDate}>{formatDate(latest.publishedAt)}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Sobrepõe a borda do topo, para dar profundidade. */}
+      {live ? (
+        <TouchableOpacity
+          style={[styles.nextCard, styles.liveCard]}
+          activeOpacity={0.85}
+          onPress={() => Linking.openURL(`${CHURCH_INFO.youtube}/live`)}
+        >
+          <View style={styles.nextIcon}>
+            <Ionicons name="radio-outline" size={24} color="#fff" />
+          </View>
+          <View style={styles.nextInfo}>
+            <Text style={styles.nextLabel}>ACONTECENDO AGORA</Text>
+            <Text style={styles.nextTitle}>{live.title}</Text>
+            <Text style={styles.nextMeta}>Toque para assistir ao vivo</Text>
+          </View>
+          <Ionicons name="logo-youtube" size={26} color="#fff" />
         </TouchableOpacity>
+      ) : (
+        next && (
+          <TouchableOpacity
+            style={styles.nextCard}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Calendário')}
+          >
+            <View style={styles.nextIcon}>
+              <Ionicons name="time-outline" size={24} color="#fff" />
+            </View>
+            <View style={styles.nextInfo}>
+              <Text style={styles.nextLabel}>{next.special ? 'PRÓXIMO EVENTO' : 'PRÓXIMO CULTO'}</Text>
+              <Text style={styles.nextTitle}>{describeWhen(next.date, now)}</Text>
+              <Text style={styles.nextMeta}>
+                {next.event.title} · {timeLeft(next.date, now)}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="#ffffffCC" />
+          </TouchableOpacity>
+        )
       )}
 
-      <Text style={styles.sectionTitle}>Acesso rápido</Text>
-      <View style={styles.grid}>
+      <View style={styles.quickRow}>
         {QUICK_LINKS.map((link) => (
-          <View key={link.tab} style={styles.gridCell}>
-            <TouchableOpacity style={styles.gridTile} onPress={() => navigation.navigate(link.tab)}>
-              <Ionicons name={link.icon} size={28} color={colors.primary} />
-              <Text style={styles.gridLabel}>{link.label}</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            key={link.tab}
+            style={styles.quickItem}
+            onPress={() => navigation.navigate(link.tab)}
+          >
+            <View style={styles.quickCircle}>
+              <Ionicons name={link.icon} size={24} color={colors.primary} />
+            </View>
+            <Text style={styles.quickLabel}>{link.label}</Text>
+          </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.sectionTitle}>Visite-nos</Text>
-      <View style={styles.contact}>
+      {hasContinue && (
+        <>
+          <SectionTitle styles={styles} title="Continue de onde parou" />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.carousel}
+          >
+            {cont.video && (
+              <TouchableOpacity
+                style={styles.contCard}
+                activeOpacity={0.85}
+                onPress={() =>
+                  navigation.navigate('Pregações', {
+                    playVideo: cont.video!.video,
+                    start: cont.video!.seconds,
+                  })
+                }
+              >
+                <View style={styles.contThumb}>
+                  {cont.video.video.thumbnail ? (
+                    <Image source={{ uri: cont.video.video.thumbnail }} style={styles.fill} />
+                  ) : null}
+                  <View style={styles.contPlay}>
+                    <Ionicons name="play" size={18} color="#fff" />
+                  </View>
+                  {cont.video.video.durationSeconds > 0 && (
+                    <View style={styles.progressTrack}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: `${Math.min(100, (cont.video.seconds / cont.video.video.durationSeconds) * 100)}%`,
+                          },
+                        ]}
+                      />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.contKind}>▶ ASSISTINDO</Text>
+                <Text style={styles.contTitle} numberOfLines={2}>
+                  {cont.video.video.title}
+                </Text>
+                <Text style={styles.contMeta}>Parou em {formatClock(cont.video.seconds)}</Text>
+              </TouchableOpacity>
+            )}
+
+            {cont.bible && (
+              <TouchableOpacity
+                style={styles.contCard}
+                activeOpacity={0.85}
+                onPress={() =>
+                  navigation.navigate('Bíblia', {
+                    open: { slug: cont.bible!.slug, chapter: cont.bible!.chapter },
+                  })
+                }
+              >
+                <View style={[styles.contThumb, styles.contBible]}>
+                  <Ionicons name="book" size={26} color="#ffffffCC" />
+                  <Text style={styles.contBibleText}>
+                    {cont.bible.name} {cont.bible.chapter}
+                  </Text>
+                </View>
+                <Text style={styles.contKind}>📖 LENDO</Text>
+                <Text style={styles.contTitle} numberOfLines={2}>
+                  {cont.bible.name}, capítulo {cont.bible.chapter}
+                </Text>
+                <Text style={styles.contMeta}>Continuar a leitura</Text>
+              </TouchableOpacity>
+            )}
+
+            {cont.radio && (
+              <TouchableOpacity
+                style={styles.contCard}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('Rádio', { playStationId: cont.radio!.id })}
+              >
+                <View style={[styles.contThumb, styles.contRadio]}>
+                  <View style={styles.contRadioDisc}>
+                    <Ionicons name="play" size={22} color={colors.primary} />
+                  </View>
+                </View>
+                <Text style={styles.contKind}>📻 OUVINDO</Text>
+                <Text style={styles.contTitle} numberOfLines={2}>
+                  {cont.radio.name}
+                </Text>
+                <Text style={styles.contMeta} numberOfLines={1}>
+                  {cont.radio.description}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        </>
+      )}
+
+      <SectionTitle styles={styles} title="Versículo do dia" />
+      <View style={styles.verseCard}>
+        <Ionicons name="sparkles" size={20} color={colors.gold} style={styles.verseIcon} />
+        <Text style={styles.verseText}>“{verse.text}”</Text>
+        <View style={styles.verseFooter}>
+          <Text style={styles.verseRef}>{verse.reference}</Text>
+          <TouchableOpacity style={styles.verseShare} onPress={shareVerse} hitSlop={8}>
+            <Ionicons name="share-social-outline" size={18} color={colors.primary} />
+            <Text style={styles.verseShareText}>Compartilhar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {latest && (
+        <>
+          <SectionTitle
+            styles={styles}
+            title="Última ministração"
+            action="Ver todas"
+            onAction={() => navigation.navigate('Pregações')}
+          />
+          <TouchableOpacity
+            style={styles.latest}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Pregações', { playVideo: latest, start: 0 })}
+          >
+            {latest.thumbnail && <Image source={{ uri: latest.thumbnail }} style={styles.fill} />}
+            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.latestShade} />
+            <View style={styles.latestPlay}>
+              <Ionicons name="play" size={26} color="#fff" />
+            </View>
+            <View style={styles.latestInfo}>
+              <Text style={styles.latestTitle} numberOfLines={2}>
+                {latest.title}
+              </Text>
+              <Text style={styles.latestDate}>{formatDate(latest.publishedAt)}</Text>
+            </View>
+          </TouchableOpacity>
+        </>
+      )}
+
+      <SectionTitle styles={styles} title="Visite-nos" />
+      <View style={styles.padded}>
         <ChurchContactCard />
       </View>
 
-      <Text style={styles.sectionTitle}>Siga a igreja</Text>
       <View style={styles.social}>
-        <TouchableOpacity style={styles.socialButton} onPress={() => Linking.openURL(INSTAGRAM_URL)}>
-          <Ionicons name="logo-instagram" size={20} color={colors.primary} />
-          <Text style={styles.socialText}>@casadeadoracaooficial</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.socialButton} onPress={() => Linking.openURL(YOUTUBE_URL)}>
-          <Ionicons name="logo-youtube" size={20} color={colors.primary} />
-          <Text style={styles.socialText}>Canal no YouTube</Text>
-        </TouchableOpacity>
+        {[
+          { icon: 'logo-instagram' as const, onPress: () => Linking.openURL(CHURCH_INFO.instagram), label: 'Instagram' },
+          { icon: 'logo-youtube' as const, onPress: () => Linking.openURL(CHURCH_INFO.youtube), label: 'YouTube' },
+          { icon: 'logo-whatsapp' as const, onPress: whatsappChurch, label: 'WhatsApp' },
+        ].map((s) => (
+          <TouchableOpacity
+            key={s.label}
+            style={styles.socialButton}
+            onPress={s.onPress}
+            accessibilityLabel={s.label}
+          >
+            <Ionicons name={s.icon} size={22} color={colors.primary} />
+          </TouchableOpacity>
+        ))}
       </View>
+      <Text style={styles.footer}>Casa de Adoração · Reino de Sacerdotes · Trindade-GO</Text>
     </ScrollView>
+  );
+}
+
+function SectionTitle({
+  styles,
+  title,
+  action,
+  onAction,
+}: {
+  styles: ReturnType<typeof makeStyles>;
+  title: string;
+  action?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionBar} />
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {action && (
+        <TouchableOpacity onPress={onAction} hitSlop={8}>
+          <Text style={styles.sectionAction}>{action} ›</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: c.background,
-  },
-  hero: {
-    backgroundColor: c.surface,
-    paddingHorizontal: SIZES.padding,
-    paddingBottom: 28,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-  },
-  settingsButton: {
-    position: 'absolute',
-    right: SIZES.padding,
-  },
-  contact: {
-    marginHorizontal: SIZES.padding,
-    marginTop: 10,
-  },
-  schedule: {
-    flexDirection: 'row',
-    marginTop: 24,
-  },
-  scheduleBar: {
-    width: 3,
-    backgroundColor: c.primary,
-    marginRight: 10,
-  },
-  scheduleText: {
-    ...FONTS.bold,
-    fontSize: SIZES.large,
-    color: c.text,
-  },
-  card: {
-    backgroundColor: c.card,
-    borderRadius: SIZES.radius,
-    marginHorizontal: SIZES.padding,
-    marginTop: SIZES.padding,
-    padding: SIZES.padding,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  nextCard: {
-    backgroundColor: c.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  nextInfo: {
-    marginLeft: 14,
-    flex: 1,
-  },
-  nextLabel: {
-    ...FONTS.mono,
-    fontSize: SIZES.small,
-    color: c.white + 'CC',
-  },
-  nextTitle: {
-    ...FONTS.bold,
-    fontSize: SIZES.xl,
-    color: c.white,
-    marginTop: 2,
-  },
-  nextPlace: {
-    ...FONTS.regular,
-    fontSize: SIZES.font,
-    color: c.white + 'CC',
-    marginTop: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-  },
-  cardLabel: {
-    ...FONTS.medium,
-    fontSize: SIZES.font,
-    color: c.textLight,
-  },
-  verseCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: c.gold,
-  },
-  verseText: {
-    ...FONTS.regular,
-    fontSize: SIZES.medium,
-    lineHeight: 24,
-    color: c.text,
-    fontStyle: 'italic',
-  },
-  verseRef: {
-    ...FONTS.mono,
-    fontSize: SIZES.small,
-    color: c.primary,
-    marginTop: 8,
-    textAlign: 'right',
-  },
-  thumb: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    borderRadius: 8,
-    backgroundColor: c.lightGray,
-  },
-  playOverlay: {
-    position: 'absolute',
-    alignSelf: 'center',
-    top: '50%',
-    marginTop: -26,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: c.primary + 'E6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  videoTitle: {
-    ...FONTS.bold,
-    fontSize: SIZES.medium,
-    color: c.text,
-    marginTop: 10,
-  },
-  videoDate: {
-    ...FONTS.mono,
-    fontSize: SIZES.small,
-    color: c.textLight,
-    marginTop: 4,
-  },
-  sectionTitle: {
-    ...FONTS.bold,
-    fontSize: SIZES.large,
-    color: c.text,
-    marginHorizontal: SIZES.padding,
-    marginTop: 24,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: SIZES.padding - 6,
-    marginTop: 6,
-  },
-  gridCell: {
-    width: '50%',
-    padding: 6,
-  },
-  gridTile: {
-    backgroundColor: c.card,
-    borderRadius: SIZES.radius,
-    paddingVertical: 18,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  gridLabel: {
-    ...FONTS.medium,
-    fontSize: SIZES.font,
-    color: c.text,
-    marginTop: 6,
-  },
-  social: {
-    paddingHorizontal: SIZES.padding,
-    marginTop: 10,
-    gap: 10,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: c.card,
-    borderRadius: SIZES.radius,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: 14,
-  },
-  socialText: {
-    ...FONTS.medium,
-    fontSize: SIZES.font,
-    color: c.text,
-  },
-});
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    fill: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100%',
+    },
+    padded: {
+      paddingHorizontal: SIZES.padding,
+    },
+    hero: {
+      backgroundColor: c.surface,
+      paddingHorizontal: SIZES.padding,
+      paddingBottom: 52,
+      borderBottomLeftRadius: 28,
+      borderBottomRightRadius: 28,
+    },
+    heroTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    greeting: {
+      ...FONTS.bold,
+      fontSize: SIZES.xl,
+      color: c.text,
+    },
+    today: {
+      ...FONTS.mono,
+      fontSize: SIZES.small,
+      color: c.textLight,
+      marginTop: 2,
+    },
+    gear: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: c.card,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    logoBox: {
+      alignItems: 'center',
+      marginTop: 22,
+    },
+    schedule: {
+      flexDirection: 'row',
+      marginTop: 18,
+    },
+    scheduleBar: {
+      width: 3,
+      backgroundColor: c.primary,
+      marginRight: 10,
+    },
+    scheduleText: {
+      ...FONTS.bold,
+      fontSize: SIZES.large,
+      color: c.text,
+    },
+    nextCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.primary,
+      marginHorizontal: SIZES.padding,
+      marginTop: -32,
+      borderRadius: SIZES.radius + 4,
+      padding: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    liveCard: {
+      backgroundColor: '#C62828',
+    },
+    nextIcon: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+      backgroundColor: 'rgba(255,255,255,0.16)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    nextInfo: {
+      flex: 1,
+      marginHorizontal: 12,
+    },
+    nextLabel: {
+      ...FONTS.mono,
+      fontSize: 11,
+      color: '#ffffffCC',
+      letterSpacing: 1,
+    },
+    nextTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.large,
+      color: '#fff',
+      marginTop: 1,
+    },
+    nextMeta: {
+      ...FONTS.regular,
+      fontSize: SIZES.small,
+      color: '#ffffffDD',
+      marginTop: 1,
+    },
+    quickRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginTop: 20,
+      paddingHorizontal: 8,
+    },
+    quickItem: {
+      alignItems: 'center',
+      width: 76,
+    },
+    quickCircle: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    quickLabel: {
+      ...FONTS.medium,
+      fontSize: SIZES.small,
+      color: c.text,
+      marginTop: 6,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: SIZES.padding,
+      marginTop: 26,
+      marginBottom: 10,
+    },
+    sectionBar: {
+      width: 3,
+      height: 18,
+      backgroundColor: c.primary,
+      marginRight: 8,
+    },
+    sectionTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.large,
+      color: c.text,
+      flex: 1,
+    },
+    sectionAction: {
+      ...FONTS.medium,
+      fontSize: SIZES.font,
+      color: c.primary,
+    },
+    carousel: {
+      paddingHorizontal: SIZES.padding,
+      gap: 12,
+    },
+    contCard: {
+      width: 170,
+    },
+    contThumb: {
+      height: 96,
+      borderRadius: SIZES.radius,
+      overflow: 'hidden',
+      backgroundColor: c.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    contPlay: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingLeft: 2,
+    },
+    progressTrack: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 4,
+      backgroundColor: 'rgba(255,255,255,0.35)',
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: '#E53935',
+    },
+    contBible: {
+      backgroundColor: c.primary,
+      gap: 4,
+    },
+    contBibleText: {
+      ...FONTS.bold,
+      fontSize: SIZES.medium,
+      color: '#fff',
+    },
+    contRadio: {
+      backgroundColor: c.gold,
+    },
+    contRadioDisc: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: '#fff',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingLeft: 3,
+    },
+    contKind: {
+      ...FONTS.mono,
+      fontSize: 10,
+      color: c.textLight,
+      marginTop: 8,
+      letterSpacing: 0.5,
+    },
+    contTitle: {
+      ...FONTS.medium,
+      fontSize: SIZES.font,
+      color: c.text,
+      marginTop: 2,
+    },
+    contMeta: {
+      ...FONTS.regular,
+      fontSize: 11,
+      color: c.textLight,
+      marginTop: 2,
+    },
+    verseCard: {
+      backgroundColor: c.card,
+      marginHorizontal: SIZES.padding,
+      borderRadius: SIZES.radius + 4,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    verseIcon: {
+      marginBottom: 8,
+    },
+    verseText: {
+      ...FONTS.regular,
+      fontSize: SIZES.large,
+      lineHeight: 27,
+      color: c.text,
+      fontStyle: 'italic',
+    },
+    verseFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 14,
+    },
+    verseRef: {
+      ...FONTS.mono,
+      fontSize: SIZES.font,
+      color: c.primary,
+    },
+    verseShare: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    verseShareText: {
+      ...FONTS.medium,
+      fontSize: SIZES.small,
+      color: c.primary,
+    },
+    latest: {
+      marginHorizontal: SIZES.padding,
+      aspectRatio: 16 / 9,
+      borderRadius: SIZES.radius + 4,
+      overflow: 'hidden',
+      backgroundColor: c.primaryDark,
+      justifyContent: 'flex-end',
+    },
+    latestShade: {
+      position: 'absolute',
+      top: '30%',
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    latestPlay: {
+      position: 'absolute',
+      top: 14,
+      right: 14,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: c.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingLeft: 3,
+    },
+    latestInfo: {
+      padding: 14,
+    },
+    latestTitle: {
+      ...FONTS.bold,
+      fontSize: SIZES.large,
+      color: '#fff',
+    },
+    latestDate: {
+      ...FONTS.mono,
+      fontSize: SIZES.small,
+      color: '#ffffffCC',
+      marginTop: 4,
+    },
+    social: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 16,
+      marginTop: 28,
+    },
+    socialButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    footer: {
+      ...FONTS.mono,
+      fontSize: 11,
+      color: c.textLight,
+      textAlign: 'center',
+      marginTop: 14,
+    },
+  });

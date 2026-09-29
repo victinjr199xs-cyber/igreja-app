@@ -19,6 +19,13 @@ import YoutubePlayer, { PLAYER_STATES, YoutubeIframeRef } from 'react-native-you
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  useNavigation,
+  useRoute,
+  NavigationProp,
+  ParamListBase,
+  RouteProp,
+} from '@react-navigation/native';
 import { SIZES, FONTS, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
@@ -179,6 +186,23 @@ export default function SermonsScreen() {
   const playerRef = useRef<YoutubeIframeRef | null>(null);
 
   const [liveEvent] = useState(() => getCurrentEvent());
+
+  // Vindo da Início ("continue de onde parou" ou última ministração): abre o
+  // player direto. Sem start explícito, retoma pelo histórico.
+  const route = useRoute<RouteProp<ParamListBase>>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const params = route.params as { playVideo?: Video; start?: number } | undefined;
+  useEffect(() => {
+    const video = params?.playVideo;
+    if (!video) return;
+    closeSerie();
+    loadHistory().then((h) => {
+      const entry = h[video.id];
+      const start = params?.start || (entry && !entry.finished ? entry.seconds : 0);
+      setPlayer({ list: [video], index: 0, start });
+    });
+    navigation.setParams({ playVideo: undefined, start: undefined });
+  }, [params?.playVideo]);
 
   const loadSeries = useCallback(() => {
     setSeriesError(null);

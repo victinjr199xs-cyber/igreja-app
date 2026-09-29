@@ -10,6 +10,13 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
+import {
+  useNavigation,
+  useRoute,
+  NavigationProp,
+  ParamListBase,
+  RouteProp,
+} from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SIZES, FONTS, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
@@ -138,6 +145,20 @@ export default function RadioScreen() {
       setSelectedStation(station);
     }
   };
+
+  // Vindo da Início ("continue de onde parou"): toca a estação pedida.
+  const route = useRoute<RouteProp<ParamListBase>>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const playStationId = (route.params as { playStationId?: string } | undefined)?.playStationId;
+  useEffect(() => {
+    if (!playStationId) return;
+    const station = RADIO_STATIONS.find((s) => s.id === playStationId);
+    if (station) {
+      setLanguage(station.language);
+      selectStation(station, true);
+    }
+    navigation.setParams({ playStationId: undefined });
+  }, [playStationId]);
 
   const togglePlayback = () => {
     // Decide pelo estado real, não só pela intenção: o áudio pode ter sido

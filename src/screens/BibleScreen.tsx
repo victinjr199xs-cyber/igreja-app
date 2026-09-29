@@ -8,6 +8,13 @@ import {
   TextInput,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  useNavigation,
+  useRoute,
+  NavigationProp,
+  ParamListBase,
+  RouteProp,
+} from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SIZES, Palette } from '../constants/theme';
 import {
@@ -42,6 +49,8 @@ function neighbor(book: BibleBook, chapter: number, step: 1 | -1): Position | nu
 export default function BibleScreen() {
   const { styles, colors } = useThemedStyles(makeStyles);
   const { settings, update } = useSettings();
+  const route = useRoute<RouteProp<ParamListBase>>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const fontSize = settings.bibleFontSize;
 
   const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
@@ -97,6 +106,14 @@ export default function BibleScreen() {
     setSelectedBook(book);
     setSelectedChapter(pos.chapter);
   };
+
+  // Vindo do "continue de onde parou" da Início: abre direto no capítulo.
+  const openParam = (route.params as { open?: Position } | undefined)?.open;
+  useEffect(() => {
+    if (!openParam) return;
+    openPosition(openParam);
+    navigation.setParams({ open: undefined });
+  }, [openParam]);
 
   const backToBooks = () => {
     setSelectedBook(null);
