@@ -27,6 +27,11 @@ aleatório, usado para exibi-la no app. Você pode trocá-la ou removê-la a
 qualquer momento em **Meu perfil**. A câmera e a galeria só são usadas quando
 você toca para escolher a foto.
 
+Se você **avaliar o aplicativo**, guardamos a nota, as opções marcadas, o
+comentário, a versão do app e o modelo do celular, ligados à sua conta, e a
+equipe recebe uma cópia por e-mail. Seu e-mail só é mostrado à equipe se você
+marcar "Podem me responder".
+
 Não vendemos nem compartilhamos seus dados com terceiros.
 
 Para excluir a conta: **Meu perfil › Excluir conta**. A exclusão é imediata e

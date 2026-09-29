@@ -2,5 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true
-  }
+  },
+  // supabase/functions roda no Deno (servidor), não no app.
+  "exclude": ["node_modules", "supabase"]
 }

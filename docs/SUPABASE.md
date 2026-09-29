@@ -110,10 +110,80 @@ create policy "avatars: dono apaga" on storage.objects
 Ao **excluir a conta**, o app apaga a foto pela API do Storage antes de chamar
 `delete_own_account` (o Supabase não permite apagar arquivos por SQL).
 
+## Avaliações do app
+
+**Configurações › Sua opinião › Avaliar o aplicativo** envia nota (1–5),
+o que a pessoa mais gosta e um comentário. O caminho:
+
+```
+app → Edge Function send-feedback → tabela app_feedback  (histórico)
+                                  → e-mail pelo Gmail    (aviso para a igreja)
+```
+
+A senha do Gmail fica só nos segredos do Supabase, nunca no app.
+
+### 1. Tabela (SQL Editor)
+
+```sql
+create table public.app_feedback (
+  id          bigint generated always as identity primary key,
+  created_at  timestamptz not null default now(),
+  user_id     uuid references auth.users (id) on delete set null default auth.uid(),
+  rating      smallint not null check (rating between 1 and 5),
+  liked       text[] not null default '{}',
+  comment     text check (char_length(comment) <= 2000),
+  allow_reply boolean not null default false,
+  app_version text,
+  platform    text,
+  device      text
+);
+
+alter table public.app_feedback enable row level security;
+
+-- Cada pessoa só grava em nome próprio...
+create policy "feedback: envia a própria" on public.app_feedback
+  for insert to authenticated
+  with check (user_id = (select auth.uid()));
+
+-- ...e só enxerga as próprias (a função usa isso para barrar envios repetidos).
+create policy "feedback: lê as próprias" on public.app_feedback
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+```
+
+Você vê **todas** as avaliações em **Table Editor › app_feedback** (o painel
+ignora o RLS). Quem excluir a conta tem a avaliação mantida, sem o vínculo.
+
+### 2. Publicar a função
+
+Pelo painel: **Edge Functions › Deploy a new function › Via Editor**.
+- Nome: `send-feedback`
+- Cole o conteúdo de `supabase/functions/send-feedback/index.ts` e clique em
+  **Deploy function**.
+- Deixe **Verify JWT** ligado (só quem está logado consegue enviar).
+
+(Pela linha de comando, se preferir: `npx supabase login`,
+`npx supabase link --project-ref ufiebjhckkmdyrfnbxka` e
+`npx supabase functions deploy send-feedback`.)
+
+### 3. Segredos
+
+Em **Edge Functions › Secrets**, adicione:
+
+| Nome | Valor |
+|---|---|
+| `FEEDBACK_TO` | e-mail que vai receber as avaliações |
+| `FEEDBACK_SMTP_USER` | o Gmail que envia (o mesmo do login serve) |
+| `FEEDBACK_SMTP_PASS` | a senha de app de 16 letras desse Gmail |
+
+A função usa a porta 465 do Gmail: as Edge Functions bloqueiam 25 e 587.
+Se o e-mail falhar, a avaliação continua salva na tabela; o erro aparece em
+**Edge Functions › send-feedback › Logs**.
+
 ## Tabelas e políticas (RLS)
 
-Hoje o app **não cria nem lê tabelas**: usa o Auth e o Storage (fotos, acima).
-Não há outra política a configurar. Quando algo for guardado no banco (pedidos de oração, inscrições…),
+O app usa o Auth, o Storage (fotos) e a tabela `app_feedback` (avaliações),
+todos com as políticas acima. Quando algo for guardado no banco (pedidos de oração, inscrições…),
 toda tabela nova precisa de **Row Level Security ligada** e de políticas que
 limitem cada usuário às próprias linhas — sem isso, a chave pública do app lê
 a tabela inteira.

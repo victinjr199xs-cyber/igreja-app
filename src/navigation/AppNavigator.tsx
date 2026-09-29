@@ -13,6 +13,7 @@ import BibleScreen from '../screens/BibleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import PrayerScreen from '../screens/PrayerScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 import GiveScreen, { GIVING_ENABLED } from '../screens/GiveScreen';
 
 const Tab = createBottomTabNavigator();
@@ -99,6 +100,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Abas" component={Tabs} options={{ headerShown: false }} />
         <Stack.Screen name="Configurações" component={SettingsScreen} options={stackOptions} />
         <Stack.Screen name="Meu perfil" component={ProfileScreen} options={stackOptions} />
+        <Stack.Screen name="Avaliar o app" component={FeedbackScreen} options={stackOptions} />
         <Stack.Screen name="Pedido de oração" component={PrayerScreen} options={stackOptions} />
         {GIVING_ENABLED && (
           <Stack.Screen name="Dízimos e ofertas" component={GiveScreen} options={stackOptions} />

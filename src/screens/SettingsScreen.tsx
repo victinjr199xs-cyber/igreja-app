@@ -209,6 +209,18 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       )}
 
+      <Text style={styles.sectionTitle}>SUA OPINIÃO</Text>
+      <View style={styles.card}>
+        <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('Avaliar o app')}>
+          <Ionicons name="star-outline" size={22} color={colors.gold} />
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Avaliar o aplicativo</Text>
+            <Text style={styles.rowDetail}>Conte o que está achando e sugira melhorias</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.gray} />
+        </TouchableOpacity>
+      </View>
+
       <Text style={styles.sectionTitle}>DADOS</Text>
       <View style={styles.card}>
         <TouchableOpacity style={styles.row} onPress={clearCache}>
