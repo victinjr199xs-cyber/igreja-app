@@ -52,6 +52,14 @@
           "remindersPermission": "O app não usa seus lembretes."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O app usa suas fotos para você escolher a foto do seu perfil.",
+          "cameraPermission": "O app usa a câmera para você tirar a foto do seu perfil.",
+          "microphonePermission": false
+        }
+      ],
       "expo-font",
       "expo-asset",
       [

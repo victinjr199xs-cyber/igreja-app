@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, SUPABASE_CONFIGURED } from '../services/supabase';
+import {
+  AvatarSource,
+  PermissionDeniedError,
+  pickAvatar,
+  removeAvatar,
+  uploadAvatar,
+} from '../services/avatarService';
 
 interface AuthValue {
   session: Session | null;
@@ -19,6 +26,16 @@ interface AuthValue {
   resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
+  /** URL da foto de perfil, ou null. */
+  avatarUrl: string | null;
+  /** Abre câmera/galeria e envia. false = a pessoa cancelou. */
+  changeAvatar: (source: AvatarSource) => Promise<boolean>;
+  deleteAvatar: () => Promise<void>;
+  updateName: (name: string) => Promise<void>;
+  changePassword: (newPassword: string) => Promise<void>;
+  /** Conta acabou de ser criada: mostra a tela de boas-vindas com a foto. */
+  isNewAccount: boolean;
+  finishOnboarding: () => void;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -27,6 +44,12 @@ const AuthContext = createContext<AuthValue | null>(null);
 export function authErrorMessage(error: unknown): string {
   const msg = String((error as { message?: string })?.message ?? error ?? '').toLowerCase();
   if (!SUPABASE_CONFIGURED) return 'O login ainda não foi configurado neste app.';
+  if (error instanceof PermissionDeniedError)
+    return 'Permita o acesso à câmera nos ajustes do celular.';
+  if (msg.includes('bucket not found') || msg.includes('row-level security'))
+    return 'O armazenamento de fotos ainda não foi configurado.';
+  if (msg.includes('payload too large') || msg.includes('exceeded the maximum'))
+    return 'A foto é grande demais.';
   if (msg.includes('invalid login')) return 'E-mail ou senha incorretos.';
   if (msg.includes('email not confirmed')) return 'Confirme seu e-mail com o código que enviamos.';
   if (msg.includes('already registered') || msg.includes('already been registered'))
@@ -47,6 +70,7 @@ export function authErrorMessage(error: unknown): string {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isNewAccount, setIsNewAccount] = useState(false);
 
   useEffect(() => {
     if (!SUPABASE_CONFIGURED) {
@@ -85,15 +109,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       throwIf(error);
       // Com "Confirm email" desligado no projeto, a sessão já vem pronta.
+      if (data.session) setIsNewAccount(true);
       return { needsCode: !data.session };
     },
 
     confirmSignUp: async (email, code) => {
+      // Antes de verificar: a sessão chega pelo onAuthStateChange e o app já
+      // deve abrir direto nas boas-vindas, não na Início.
+      setIsNewAccount(true);
       const { error } = await supabase.auth.verifyOtp({
         email: email.trim(),
         token: code.trim(),
         type: 'signup',
       });
+      if (error) setIsNewAccount(false);
       throwIf(error);
     },
 
@@ -123,12 +152,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
 
     deleteAccount: async () => {
+      // O Storage não deixa apagar arquivos por SQL: a foto sai pela API antes.
+      if (session?.user && session.user.user_metadata?.avatar_url) {
+        await removeAvatar(session.user.id, false).catch(() => {});
+      }
       // Função SQL delete_own_account (ver docs/SUPABASE.md): apaga o próprio
       // usuário. O app não tem a chave de administrador, e nem deve ter.
       const { error } = await supabase.rpc('delete_own_account');
       throwIf(error);
       await supabase.auth.signOut();
     },
+
+    avatarUrl: (session?.user?.user_metadata?.avatar_url as string) || null,
+
+    changeAvatar: async (source) => {
+      if (!session?.user) return false;
+      const uri = await pickAvatar(source);
+      if (!uri) return false;
+      await uploadAvatar(session.user.id, uri);
+      // updateUser dispara USER_UPDATED; a sessão (e a foto) se atualizam sozinhas.
+      return true;
+    },
+
+    deleteAvatar: async () => {
+      if (!session?.user) return;
+      await removeAvatar(session.user.id);
+    },
+
+    updateName: async (name) => {
+      const { error } = await supabase.auth.updateUser({ data: { name: name.trim() } });
+      throwIf(error);
+    },
+
+    changePassword: async (newPassword) => {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      throwIf(error);
+    },
+
+    isNewAccount,
+    finishOnboarding: () => setIsNewAccount(false),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

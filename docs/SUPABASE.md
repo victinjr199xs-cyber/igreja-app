@@ -74,10 +74,46 @@ O botão **Configurações › Conta › Excluir conta** chama essa função.
 > schema. O **Security Advisor** do Supabase aponta isso como
 > *function_search_path_mutable*.
 
+## Fotos de perfil (Storage)
+
+A foto de perfil fica no bucket público `avatars`, em `<id do usuário>/avatar.jpg`
+(512×512, ~50 KB). O endereço dela vai em `user_metadata.avatar_url`. Rode uma
+vez no **SQL Editor**:
+
+```sql
+-- Bucket público: qualquer um vê a foto pelo link (o nome da pasta é o id
+-- aleatório do usuário). Até 1 MB, só JPEG/PNG.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 1048576, array['image/jpeg', 'image/png'])
+on conflict (id) do nothing;
+
+-- Cada usuário só mexe na própria pasta. O upload com upsert exige
+-- select + insert + update.
+create policy "avatars: dono lê" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "avatars: dono envia" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "avatars: dono troca" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text)
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "avatars: dono apaga" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
+```
+
+Ao **excluir a conta**, o app apaga a foto pela API do Storage antes de chamar
+`delete_own_account` (o Supabase não permite apagar arquivos por SQL).
+
 ## Tabelas e políticas (RLS)
 
-Hoje o app **não cria nem lê tabelas**: usa só o Auth. Não há política a
-configurar. Quando algo for guardado no banco (pedidos de oração, inscrições…),
+Hoje o app **não cria nem lê tabelas**: usa o Auth e o Storage (fotos, acima).
+Não há outra política a configurar. Quando algo for guardado no banco (pedidos de oração, inscrições…),
 toda tabela nova precisa de **Row Level Security ligada** e de políticas que
 limitem cada usuário às próprias linhas — sem isso, a chave pública do app lê
 a tabela inteira.

@@ -21,10 +21,16 @@ forma criptografada; ninguém da igreja tem acesso a ela). Esses dados ficam no
 app, e servem apenas para você entrar no app e recuperar a senha. O e-mail
 também é usado para enviar os códigos de confirmação e de redefinição de senha.
 
+Se você escolher uma **foto de perfil** (opcional), ela é reduzida no próprio
+celular e guardada no Supabase. A foto fica acessível por um link de endereço
+aleatório, usado para exibi-la no app. Você pode trocá-la ou removê-la a
+qualquer momento em **Meu perfil**. A câmera e a galeria só são usadas quando
+você toca para escolher a foto.
+
 Não vendemos nem compartilhamos seus dados com terceiros.
 
-Para excluir a conta: **Configurações › Conta › Excluir conta**. A exclusão é
-imediata e apaga seu nome, e-mail e senha.
+Para excluir a conta: **Meu perfil › Excluir conta**. A exclusão é imediata e
+apaga seu nome, e-mail, senha e foto.
 
 ## O que fica no seu celular
 

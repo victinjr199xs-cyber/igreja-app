@@ -16,6 +16,7 @@ import { ContentProvider } from './src/context/ContentContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SUPABASE_CONFIGURED } from './src/services/supabase';
 import AuthScreen from './src/screens/AuthScreen';
+import WelcomeScreen from './src/screens/WelcomeScreen';
 import { registerForPushNotificationsAsync } from './src/services/notificationService';
 
 // Segura a splash até as fontes e as preferências carregarem: sem isso a logo
@@ -24,7 +25,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function Root() {
   const { loaded, isDark } = useSettings();
-  const { session, loading: authLoading } = useAuth();
+  const { session, loading: authLoading, isNewAccount } = useAuth();
   // Sem Supabase configurado, só em desenvolvimento, dá para pular o login.
   const [devSkipped, setDevSkipped] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
@@ -58,6 +59,16 @@ function Root() {
         <AuthScreen
           onSkip={!SUPABASE_CONFIGURED && __DEV__ ? () => setDevSkipped(true) : undefined}
         />
+      </>
+    );
+  }
+
+  // Conta recém-criada: boas-vindas com a foto antes de entrar no app.
+  if (isNewAccount) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <WelcomeScreen />
       </>
     );
   }
