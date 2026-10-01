@@ -20,7 +20,9 @@ export const supabase = createClient(
       storage: AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
-      // Não há login por link: a sessão nunca vem na URL.
+      // Login com Google: o navegador devolve um código que o app troca pela
+      // sessão (socialAuth.ts). A sessão em si nunca vem na URL.
+      flowType: 'pkce',
       detectSessionInUrl: false,
     },
   }

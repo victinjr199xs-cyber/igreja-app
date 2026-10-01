@@ -57,7 +57,8 @@ export async function uploadAvatar(userId: string, localUri: string): Promise<st
   // O arquivo tem sempre o mesmo nome: o ?v= força o app a baixar a foto nova
   // em vez de mostrar a antiga do cache.
   const url = `${data.publicUrl}?v=${Date.now()}`;
-  const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: url } });
+  // photo_url, não avatar_url: o login do Google regrava avatar_url (AuthContext).
+  const { error: updateError } = await supabase.auth.updateUser({ data: { photo_url: url } });
   if (updateError) throw updateError;
   return url;
 }
@@ -66,7 +67,7 @@ export async function removeAvatar(userId: string, clearProfile = true): Promise
   const { error } = await supabase.storage.from(BUCKET).remove([pathFor(userId)]);
   if (error) throw error;
   if (clearProfile) {
-    const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: null } });
+    const { error: updateError } = await supabase.auth.updateUser({ data: { photo_url: null } });
     if (updateError) throw updateError;
   }
 }

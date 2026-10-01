@@ -102,6 +102,71 @@ O botão **Configurações › Conta › Excluir conta** chama essa função.
 > schema. O **Security Advisor** do Supabase aponta isso como
 > *function_search_path_mutable*.
 
+## Entrar com Google e Apple
+
+A tela de entrada mostra **Continuar com Google** (Android e iPhone) e o botão
+da **Apple** (só no iPhone). O e-mail com senha continua embaixo. Enquanto os
+provedores não estiverem ativos, o botão avisa "Essa forma de entrar ainda não
+foi ativada. Use o e-mail.".
+
+Se o e-mail do Google for o mesmo de uma conta já criada por e-mail, o Supabase
+junta as duas: é a mesma pessoa, com a mesma foto e o mesmo histórico.
+
+### Endereços de retorno (fazer primeiro)
+
+Supabase › **Authentication › URL Configuration › Redirect URLs** › *Add URL*:
+
+```
+casadeadoracao://**
+exp://**
+```
+
+O primeiro é o app instalado (APK/iOS); o segundo, o Expo Go.
+
+### Google
+
+1. [console.cloud.google.com](https://console.cloud.google.com) › o mesmo
+   projeto da chave do YouTube › **APIs e serviços › Tela de consentimento
+   OAuth** (ou "Google Auth Platform"): tipo **Externo**, nome "Casa de
+   Adoração", e-mail de suporte, logo. Publique (**Publicar app**) para não
+   ficar limitado a usuários de teste.
+2. **Credenciais › Criar credenciais › ID do cliente OAuth** › tipo
+   **Aplicativo da Web** (sim, Web: quem conversa com o Google é o Supabase).
+   - *URIs de redirecionamento autorizados*:
+     `https://ufiebjhckkmdyrfnbxka.supabase.co/auth/v1/callback`
+3. Copie o **ID do cliente** e a **Chave secreta**.
+4. Supabase › **Authentication › Sign In / Providers › Google** › ativar ›
+   colar os dois › *Save*.
+
+A chave secreta fica só no Supabase, nunca no app.
+
+### Apple (iPhone)
+
+1. Supabase › **Authentication › Sign In / Providers › Apple** › ativar.
+2. Em **Client IDs**, coloque (separados por vírgula):
+   `host.exp.Exponent,com.casadeadoracao.app`
+   - `host.exp.Exponent` é o Expo Go: dá para testar já, sem conta paga.
+   - `com.casadeadoracao.app` é o app de verdade. Para publicá-lo no iPhone é
+     preciso a conta **Apple Developer** (US$ 99/ano); o EAS liga a permissão
+     "Sign in with Apple" sozinho no primeiro build de iOS.
+3. Deixe *Secret Key* em branco: o app usa o login nativo do iPhone, que não
+   precisa dela.
+
+A Apple só manda o nome da pessoa **no primeiro login**; o app grava na hora.
+O e-mail pode vir escondido (`...@privaterelay.appleid.com`) se a pessoa
+escolher "Ocultar meu e-mail": é normal e funciona.
+
+> Apple no Android exigiria um *Services ID* e uma chave da conta paga. Como
+> quase ninguém tem conta Apple no Android, o botão aparece só no iPhone. A
+> regra da App Store (4.8) só exige a Apple no iOS quando há Google.
+
+### Nome e foto da conta
+
+Nome e foto escolhidos no app ficam em `display_name` e `photo_url` em
+`user_metadata`. O Supabase regrava `name`/`avatar_url` com os dados do Google
+a cada login; por isso o app não usa esses campos para o que a pessoa escolheu
+(só como reserva, para contas antigas e a foto do Google).
+
 ## Fotos de perfil (Storage)
 
 A foto de perfil fica no bucket público `avatars`, em `<id do usuário>/avatar.jpg`

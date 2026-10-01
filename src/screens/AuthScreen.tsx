@@ -17,10 +17,13 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FONTS, SIZES, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
-import { MIN_PASSWORD_LENGTH, authErrorMessage, useAuth } from '../context/AuthContext';
+import { MIN_PASSWORD_LENGTH, SocialProvider, authErrorMessage, useAuth } from '../context/AuthContext';
+import { AuthCanceledError, isAppleAvailable } from '../services/socialAuth';
+import { reportError } from '../services/errorReporter';
 import ChurchLogo from '../components/ChurchLogo';
 import { CHURCH_INFO } from '../data/churchData';
 
@@ -150,9 +153,15 @@ function CodeInput({ value, onChange, styles }: { value: string; onChange: (v: s
 }
 
 export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
-  const { styles, colors } = useThemedStyles(makeStyles);
+  const { styles, colors, isDark } = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const auth = useAuth();
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  const [socialBusy, setSocialBusy] = useState<SocialProvider | null>(null);
+
+  useEffect(() => {
+    isAppleAvailable().then(setAppleAvailable);
+  }, []);
 
   const [mode, setMode] = useState<Mode>('login');
   const [name, setName] = useState('');
@@ -207,6 +216,23 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
       setError(authErrorMessage(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Separado do `busy`: o botão "Entrar" não deve girar durante o login do Google.
+  const social = async (provider: SocialProvider) => {
+    if (busy || socialBusy) return;
+    setSocialBusy(provider);
+    setError(null);
+    setInfo(null);
+    try {
+      await auth.signInWithProvider(provider);
+    } catch (e) {
+      if (e instanceof AuthCanceledError) return;
+      reportError(`login-${provider}`, e);
+      setError(authErrorMessage(e));
+    } finally {
+      setSocialBusy(null);
     }
   };
 
@@ -339,6 +365,51 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
 
             <Text style={styles.title}>{t.title}</Text>
             <Text style={styles.subtitle}>{t.subtitle}</Text>
+
+            {(mode === 'login' || mode === 'signup') && (
+              <>
+                {appleAvailable && (
+                  <AppleAuthentication.AppleAuthenticationButton
+                    // key: o botão nativo não troca o texto depois de montado.
+                    key={`${mode}-${isDark}`}
+                    buttonType={
+                      mode === 'signup'
+                        ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
+                        : AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
+                    }
+                    buttonStyle={
+                      isDark
+                        ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                        : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                    }
+                    cornerRadius={14}
+                    style={styles.appleButton}
+                    onPress={() => social('apple')}
+                  />
+                )}
+                <TouchableOpacity
+                  style={styles.googleButton}
+                  onPress={() => social('google')}
+                  disabled={busy || socialBusy !== null}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Continuar com Google"
+                >
+                  {socialBusy === 'google' ? (
+                    <ActivityIndicator color={colors.text} />
+                  ) : (
+                    <>
+                      <Ionicons name="logo-google" size={20} color={colors.text} />
+                      <Text style={styles.googleText}>Continuar com Google</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <View style={styles.or}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>ou com e-mail</Text>
+                  <View style={styles.orLine} />
+                </View>
+              </>
+            )}
 
             {mode === 'signup' && (
               <Field
@@ -584,6 +655,43 @@ const makeStyles = (c: Palette) =>
       marginTop: 4,
       marginBottom: 18,
       lineHeight: 20,
+    },
+    appleButton: {
+      width: '100%',
+      height: 52,
+      marginBottom: 10,
+    },
+    googleButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      height: 52,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.card,
+    },
+    googleText: {
+      ...FONTS.medium,
+      fontSize: SIZES.medium,
+      color: c.text,
+    },
+    or: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginVertical: 16,
+    },
+    orLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: c.border,
+    },
+    orText: {
+      ...FONTS.mono,
+      fontSize: SIZES.small,
+      color: c.textLight,
     },
     field: {
       flexDirection: 'row',

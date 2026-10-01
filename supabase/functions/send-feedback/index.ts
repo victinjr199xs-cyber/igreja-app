@@ -96,7 +96,9 @@ Deno.serve(async (req) => {
   // O e-mail é um aviso: se falhar, a avaliação já está salva na tabela.
   let emailed = false;
   try {
-    const name = String(user.user_metadata?.name ?? '').trim() || 'Sem nome';
+    // Mesma ordem do app (nameFromMetadata em AuthContext.tsx).
+    const meta = user.user_metadata ?? {};
+    const name = String(meta.display_name || meta.name || meta.full_name || '').trim() || 'Sem nome';
     const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
     const transport = nodemailer.createTransport({
       // Porta 465 (TLS direto): as Edge Functions bloqueiam 25 e 587.

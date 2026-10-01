@@ -19,9 +19,16 @@ import { useAvatarPicker } from '../hooks/useAvatarPicker';
 import Avatar from '../components/Avatar';
 import { reportError } from '../services/errorReporter';
 
+const PROVIDER_LABELS: Record<string, string> = { email: 'E-mail', google: 'Google', apple: 'Apple' };
+
 export default function ProfileScreen() {
   const { styles, colors } = useThemedStyles(makeStyles);
-  const { user, displayName, updateName, changePassword, signOut, deleteAccount } = useAuth();
+  const { user, displayName, providers, updateName, changePassword, signOut, deleteAccount } = useAuth();
+  // Quem entrou só por Google/Apple não tem senha: a primeira é "criar".
+  const hasPassword = providers.length === 0 || providers.includes('email');
+  const linked = providers
+    .map((p) => PROVIDER_LABELS[p] ?? p)
+    .join(' · ');
   const { busy: avatarBusy, openMenu } = useAvatarPicker();
 
   const [name, setName] = useState(displayName);
@@ -54,7 +61,10 @@ export default function ProfileScreen() {
       setPassword('');
       setConfirm('');
       setShowPassword(false);
-      Alert.alert('Senha alterada', 'Use a nova senha no próximo acesso.');
+      Alert.alert(
+        hasPassword ? 'Senha alterada' : 'Senha criada',
+        hasPassword ? 'Use a nova senha no próximo acesso.' : 'Agora você também pode entrar com e-mail e senha.'
+      );
     } catch (e) {
       Alert.alert('Não foi possível alterar', authErrorMessage(e));
     } finally {
@@ -140,13 +150,20 @@ export default function ProfileScreen() {
             <Text style={styles.readonlyText}>{user?.email}</Text>
             <Ionicons name="lock-closed" size={16} color={colors.gray} />
           </View>
+
+          {linked.length > 0 && (
+            <>
+              <Text style={[styles.label, { marginTop: 14 }]}>Entra com</Text>
+              <Text style={styles.readonlyText}>{linked}</Text>
+            </>
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>SEGURANÇA</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.row} onPress={() => setShowPassword((v) => !v)}>
             <Ionicons name="key-outline" size={22} color={colors.primary} />
-            <Text style={styles.rowTitle}>Alterar senha</Text>
+            <Text style={styles.rowTitle}>{hasPassword ? 'Alterar senha' : 'Criar senha para entrar por e-mail'}</Text>
             <Ionicons name={showPassword ? 'chevron-up' : 'chevron-down'} size={18} color={colors.gray} />
           </TouchableOpacity>
           {showPassword && (
