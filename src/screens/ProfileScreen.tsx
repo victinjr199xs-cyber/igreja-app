@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SIZES, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
-import { MIN_PASSWORD_LENGTH, authErrorMessage, useAuth } from '../context/AuthContext';
+import { PASSWORD_RULE, authErrorMessage, isStrongPassword, useAuth } from '../context/AuthContext';
 import { useAvatarPicker } from '../hooks/useAvatarPicker';
 import Avatar from '../components/Avatar';
 import { reportError } from '../services/errorReporter';
@@ -41,7 +41,7 @@ export default function ProfileScreen() {
   useEffect(() => setName(displayName), [displayName]);
 
   const nameChanged = name.trim().length > 1 && name.trim() !== displayName.trim();
-  const passwordOk = password.length >= MIN_PASSWORD_LENGTH && password === confirm;
+  const passwordOk = isStrongPassword(password) && password === confirm;
 
   const saveName = async () => {
     setSavingName(true);
@@ -172,7 +172,7 @@ export default function ProfileScreen() {
                 style={styles.field}
                 value={password}
                 onChangeText={setPassword}
-                placeholder={`Nova senha (mín. ${MIN_PASSWORD_LENGTH} caracteres)`}
+                placeholder="Nova senha"
                 placeholderTextColor={colors.gray}
                 secureTextEntry
                 textContentType="newPassword"
@@ -186,8 +186,11 @@ export default function ProfileScreen() {
                 secureTextEntry
                 textContentType="newPassword"
               />
-              {confirm.length > 0 && password !== confirm && (
-                <Text style={styles.warn}>As senhas não são iguais.</Text>
+              {password.length > 0 && !isStrongPassword(password) ? (
+                <Text style={styles.warn}>A senha precisa ter {PASSWORD_RULE}.</Text>
+              ) : (
+                confirm.length > 0 &&
+                password !== confirm && <Text style={styles.warn}>As senhas não são iguais.</Text>
               )}
               <TouchableOpacity
                 style={[styles.primary, !passwordOk && { opacity: 0.45 }]}

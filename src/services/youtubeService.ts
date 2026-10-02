@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-import Constants from 'expo-constants';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { reportError } from './errorReporter';
+import { supabase, SUPABASE_CONFIGURED } from './supabase';
 
 const API = 'https://www.googleapis.com/youtube/v3';
 const CHANNEL_ID = 'UCp8El__iNcoGDlD4Lt9h-hg';
@@ -65,38 +65,41 @@ export function parseDuration(iso: string): number {
   );
 }
 
+// Só para a transição: usada enquanto a função "youtube" não estiver publicada.
+// Depois, remova EXPO_PUBLIC_YOUTUBE_API_KEY do .env e do EAS (docs/SUPABASE.md).
+const LEGACY_KEY = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY;
+
 /**
- * Identifica o app para o Google. Com estes cabeçalhos, a chave pode ser
- * restrita no Google Cloud a "apps iOS com este bundle ID" / "apps Android com
- * este pacote + SHA-1", e deixa de servir para quem a extrair do app. Sem a
- * restrição configurada, eles são simplesmente ignorados.
+ * Pede à Edge Function "youtube", que guarda a chave no servidor. null = a
+ * função ainda não existe no projeto.
  */
-function appIdentityHeaders(): Record<string, string> {
-  if (Platform.OS === 'ios') {
-    const bundle = Constants.expoConfig?.ios?.bundleIdentifier;
-    return bundle ? { 'X-Ios-Bundle-Identifier': bundle } : {};
+async function viaServer(path: string, params: Record<string, string>): Promise<{ status: number; body: any } | null> {
+  const { data, error } = await supabase.functions.invoke('youtube', { body: { path, params } });
+  if (!error) return { status: 200, body: data };
+  if (error instanceof FunctionsHttpError) {
+    const res = error.context as Response;
+    const body = await res.json().catch(() => null);
+    if (res.status === 404 && body?.code === 'NOT_FOUND') return null;
+    return { status: res.status, body };
   }
-  if (Platform.OS === 'android') {
-    const pkg = Constants.expoConfig?.android?.package;
-    // SHA-1 do certificado de assinatura do build (EAS > Credentials).
-    const cert = process.env.EXPO_PUBLIC_ANDROID_CERT_SHA1?.replace(/:/g, '');
-    return {
-      ...(pkg ? { 'X-Android-Package': pkg } : {}),
-      ...(cert ? { 'X-Android-Cert': cert } : {}),
-    };
-  }
-  return {};
+  throw error; // sem rede
+}
+
+async function direct(path: string, params: Record<string, string>, key: string) {
+  const query = new URLSearchParams({ ...params, key }).toString();
+  const res = await fetch(`${API}/${path}?${query}`);
+  // Proxy ou portal de Wi-Fi podem responder HTML: não dá para supor JSON.
+  return { status: res.status, body: await res.json().catch(() => null) };
 }
 
 async function get<T>(path: string, params: Record<string, string>): Promise<T> {
-  const key = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY;
-  if (!key) {
-    throw new Error('EXPO_PUBLIC_YOUTUBE_API_KEY não configurada no .env');
+  let reply = SUPABASE_CONFIGURED ? await viaServer(path, params) : null;
+  if (!reply) {
+    if (!LEGACY_KEY) throw new Error('Função "youtube" não publicada no Supabase');
+    reply = await direct(path, params, LEGACY_KEY);
   }
-  const query = new URLSearchParams({ ...params, key }).toString();
-  const res = await fetch(`${API}/${path}?${query}`, { headers: appIdentityHeaders() });
-  // Proxy ou portal de Wi-Fi podem responder HTML: não dá para supor JSON.
-  const body = await res.json().catch(() => null);
+  const res = { ok: reply.status >= 200 && reply.status < 300, status: reply.status };
+  const body = reply.body;
   if (!res.ok || !body) {
     const error = new Error(body?.error?.message ?? `YouTube API respondeu ${res.status}`);
     // Cota esgotada, chave recusada, parâmetro inválido: é problema nosso, não

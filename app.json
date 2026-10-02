@@ -2,7 +2,7 @@
   "expo": {
     "name": "Casa de Adoração",
     "slug": "igreja-app",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "scheme": "casadeadoracao",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,6 +23,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.casadeadoracao.app",
+      "allowBackup": false,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
@@ -82,7 +83,8 @@
           "backgroundColor": "#E2E2E2"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

@@ -44,6 +44,34 @@ Ainda dependem de acesso às contas (não há como fazer pelo código):
 itens 1, 2 e 3 abaixo, e aplicar as migrações 3 e 4. Item 7 (backups) segue
 aceito no plano gratuito. Item 11 (`npm audit`) segue aguardando o Expo.
 
+## Terceira rodada — 02/10/2026: checklist de 20 itens, proteção máxima
+
+Testes ao vivo só com a chave pública: excluir conta sem login → 42501, lista
+de tabelas → 401, fotos/buckets → `[]`, `auth.users` invisível, http não
+entrega dados. Histórico do git sem segredos. 79 testes passando.
+
+| Achado | Correção |
+|---|---|
+| Chave do YouTube dentro do APK, sem restrição (funcionou de fora) | Função `youtube` no servidor guarda a chave; o app não tem mais chave. Parâmetros conferidos um a um, só com login |
+| Sessão (tokens) em texto puro no AsyncStorage | `encryptedStorage.ts`: AES-256, chave nova a cada gravação no Keychain/Keystore, só neste aparelho. Sessões antigas migram sem deslogar |
+| Backup do Android copiava os dados do app | `android.allowBackup: false` |
+| Avaliação: dava para escolher autor/data e pular o limite gravando direto na API | Permissão só nas colunas de conteúdo; trigger força autor e data; limite 1/min e 10/dia no banco |
+| Tabela de erros aceitava gravação sem limite (robô enchendo o banco) | Mesmas travas de coluna; limite 30/10 min por pessoa e 300/10 min sem login |
+| Foto: cabiam infinitos arquivos na própria pasta | Só `<id>/avatar.jpg`, só JPEG, 1 MB |
+| Senha: só tamanho | 8+ com letras e números, no app (e no painel, a fazer) |
+| Função devolvia mensagem interna do banco | Só o código do erro; detalhe vai para o log |
+| Funções sem limite de tamanho do pedido | 4 KB (`youtube`) e 16 KB (`send-feedback`); cabeçalho `nosniff` |
+| `exp://**` liberado nos retornos de login | Documentado: só `casadeadoracao://**` fixo |
+
+Ficou de fora, de propósito:
+- **CAPTCHA** no cadastro: exige conta Cloudflare e um passo a mais na tela
+  de entrada. O cadastro já exige o código do e-mail e o Supabase limita
+  envios. Reavaliar se aparecer conta falsa.
+- **Assinatura das atualizações OTA** (code signing): exige plano pago do EAS.
+- `npm audit`: 5 altos (`node-forge`) e 9 moderados (`uuid`), todos em
+  ferramentas de build do Expo, fora do app. Aguardar o Expo; **não** usar
+  `--force`.
+
 ## Pendências da primeira rodada (por prioridade)
 
 ### Alta — resolver antes de ampliar a distribuição

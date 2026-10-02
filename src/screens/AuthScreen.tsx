@@ -21,7 +21,13 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FONTS, SIZES, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
-import { MIN_PASSWORD_LENGTH, SocialProvider, authErrorMessage, useAuth } from '../context/AuthContext';
+import {
+  PASSWORD_RULE,
+  SocialProvider,
+  authErrorMessage,
+  isStrongPassword,
+  useAuth,
+} from '../context/AuthContext';
 import { AuthCanceledError, isAppleAvailable } from '../services/socialAuth';
 import { reportError } from '../services/errorReporter';
 import ChurchLogo from '../components/ChurchLogo';
@@ -265,12 +271,14 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
     (mode === 'login'
       ? validEmail && password.length > 0
       : mode === 'signup'
-        ? name.trim().length > 1 && validEmail && password.length >= MIN_PASSWORD_LENGTH
+        ? name.trim().length > 1 && validEmail && isStrongPassword(password)
         : mode === 'verify'
           ? code.length === 6
           : mode === 'forgot'
             ? validEmail
-            : code.length === 6 && password.length >= MIN_PASSWORD_LENGTH);
+            : code.length === 6 && isStrongPassword(password));
+  // Mostra o porquê do botão apagado assim que a pessoa começa a digitar.
+  const weakPassword = (mode === 'signup' || mode === 'reset') && password.length > 0 && !isStrongPassword(password);
 
   const TITLES: Record<Mode, { title: string; subtitle: string; button: string }> = {
     login: { title: 'Que bom te ver!', subtitle: 'Entre para acessar cultos, rádio e a Palavra.', button: 'Entrar' },
@@ -447,13 +455,7 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
             {(mode === 'login' || mode === 'signup' || mode === 'reset') && (
               <Field
                 icon="lock-closed-outline"
-                placeholder={
-                  mode === 'reset'
-                    ? `Nova senha (mín. ${MIN_PASSWORD_LENGTH} caracteres)`
-                    : mode === 'signup'
-                      ? `Senha (mín. ${MIN_PASSWORD_LENGTH} caracteres)`
-                      : 'Senha'
-                }
+                placeholder={mode === 'reset' ? 'Nova senha' : 'Senha'}
                 value={password}
                 onChangeText={setPassword}
                 secure
@@ -462,6 +464,12 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
                 styles={styles}
                 colors={colors}
               />
+            )}
+
+            {(mode === 'signup' || mode === 'reset') && (
+              <Text style={[styles.hint, weakPassword && { color: colors.error }]}>
+                Senha: {PASSWORD_RULE}.
+              </Text>
             )}
 
             {mode === 'login' && (
@@ -714,6 +722,14 @@ const makeStyles = (c: Palette) =>
       fontSize: SIZES.medium,
       color: c.text,
       height: '100%',
+    },
+    hint: {
+      ...FONTS.regular,
+      fontSize: SIZES.small,
+      color: c.textLight,
+      marginTop: -4,
+      marginBottom: 6,
+      marginLeft: 4,
     },
     forgot: {
       alignSelf: 'flex-end',

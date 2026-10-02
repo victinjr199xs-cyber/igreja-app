@@ -1,4 +1,14 @@
-import { nameFromMetadata, parseAuthCallback, photoFromMetadata } from '../account';
+import { isStrongPassword, nameFromMetadata, parseAuthCallback, photoFromMetadata } from '../account';
+
+describe('isStrongPassword', () => {
+  it('exige 8 caracteres, letra e número', () => {
+    expect(isStrongPassword('igreja2026')).toBe(true);
+    expect(isStrongPassword('Adoração1')).toBe(true);
+    expect(isStrongPassword('abc123')).toBe(false); // curta
+    expect(isStrongPassword('somenteletras')).toBe(false);
+    expect(isStrongPassword('1234567890')).toBe(false);
+  });
+});
 
 describe('nameFromMetadata', () => {
   it('prefere o nome escolhido no app ao do Google', () => {

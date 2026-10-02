@@ -9,14 +9,8 @@
 //   FEEDBACK_SMTP_USER  Gmail que envia (o mesmo do login serve)
 //   FEEDBACK_SMTP_PASS  senha de app desse Gmail (16 letras)
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
 import nodemailer from 'npm:nodemailer@6';
-
-// Sem cabeçalhos CORS de propósito: quem chama é o app (iOS/Android), que não
-// passa por CORS. Assim nenhum site consegue usar a função pelo navegador de
-// alguém logado. Se um dia houver versão web, libere só o domínio dela aqui.
-const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+import { caller, json, readJson } from '../_shared/http.ts';
 
 const LIKED_OPTIONS = new Set([
   'Pregações',
@@ -38,27 +32,14 @@ Deno.serve(async (req) => {
 
   // Cliente com o token de quem chamou: o insert passa pelo RLS como esse
   // usuário, e ninguém consegue avaliar em nome de outro.
-  // Projetos antigos expõem SUPABASE_ANON_KEY; os de chaves novas podem expor
-  // só a publishable. Qualquer uma serve: quem autentica é o token do usuário.
-  const publicKey = Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
-  if (!publicKey) {
-    console.error('Nem SUPABASE_ANON_KEY nem SUPABASE_PUBLISHABLE_KEY disponíveis na função.');
-    return json(500, { error: 'misconfigured' });
-  }
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, publicKey, {
-    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-  });
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const who = await caller(req);
+  if (!who) return json(500, { error: 'misconfigured' });
+  const { supabase, user } = who;
   if (!user) return json(401, { error: 'not_authenticated' });
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return json(400, { error: 'invalid_json' });
-  }
+  // Comentário de até 2000 caracteres cabe com folga em 16 KB.
+  const body = await readJson(req, 16_000);
+  if (!body) return json(400, { error: 'invalid_body' });
 
   // Tudo vem do app, então tudo é validado aqui.
   const rating = Number(body.rating);
@@ -81,8 +62,8 @@ Deno.serve(async (req) => {
     .limit(1);
   if (recent && recent.length > 0) return json(429, { error: 'too_many' });
 
+  // user_id e created_at são preenchidos pelo banco (o app não pode escolher).
   const { error: insertError } = await supabase.from('app_feedback').insert({
-    user_id: user.id,
     rating,
     liked,
     comment: comment || null,
@@ -91,7 +72,13 @@ Deno.serve(async (req) => {
     platform,
     device,
   });
-  if (insertError) return json(500, { error: 'insert_failed', detail: insertError.message });
+  if (insertError) {
+    // O limite do banco (trigger) também barra envios repetidos.
+    if (insertError.message.includes('rate_limited')) return json(429, { error: 'too_many' });
+    // Detalhe só no log da função: a resposta não revela nada do banco.
+    console.error('Falha ao gravar avaliação:', insertError.message);
+    return json(500, { error: 'insert_failed' });
+  }
 
   // O e-mail é um aviso: se falhar, a avaliação já está salva na tabela.
   let emailed = false;

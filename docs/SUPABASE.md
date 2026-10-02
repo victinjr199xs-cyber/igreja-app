@@ -118,10 +118,13 @@ Supabase › **Authentication › URL Configuration › Redirect URLs** › *Add
 
 ```
 casadeadoracao://**
-exp://**
 ```
 
-O primeiro é o app instalado (APK/iOS); o segundo, o Expo Go.
+Para testar no **Expo Go**, adicione também o endereço do seu computador, o
+que aparece no `npx expo start` (ex.: `exp://192.168.0.10:8081/**`), e
+**remova depois**. Não deixe `exp://**` liberado de vez: um link de login
+malicioso poderia mandar a sessão para o Expo Go apontando para o servidor de
+outra pessoa.
 
 ### Google
 
@@ -272,6 +275,48 @@ Em **Edge Functions › Secrets**, adicione:
 A função usa a porta 465 do Gmail: as Edge Functions bloqueiam 25 e 587.
 Se o e-mail falhar, a avaliação continua salva na tabela; o erro aparece em
 **Edge Functions › send-feedback › Logs**.
+
+## Vídeos do YouTube (chave fora do app)
+
+A chave do YouTube fica só no servidor, na função `youtube`. O app não tem
+mais a chave: quem abrir o APK não encontra nada para copiar. A função só
+atende quem está logado e só repassa as três consultas que o app faz.
+
+1. Google Cloud › **Credenciais › Criar credenciais › Chave de API**. Em
+   *Restrições da API*, marque só **YouTube Data API v3**. (Restrição de app
+   não se aplica: quem chama é o servidor.)
+2. No CMD, na pasta do projeto:
+   ```
+   npx supabase secrets set YOUTUBE_API_KEY=cole-a-chave-nova-aqui
+   npx supabase functions deploy youtube
+   ```
+3. Abra a aba Pregações no app e confira se os vídeos aparecem.
+4. Tire a chave antiga do app:
+   - apague `EXPO_PUBLIC_YOUTUBE_API_KEY` do `.env` e do EAS
+     (expo.dev › projeto › Environment variables, em preview e production);
+   - gere o APK novo;
+   - quando todos os testadores estiverem nele, **apague a chave antiga** no
+     Google Cloud. Os APKs antigos ainda a usam diretamente.
+
+Enquanto a função não estiver publicada, o app usa a chave antiga como antes
+(para nada quebrar na transição).
+
+## Segurança — ajustes no painel
+
+O código já faz a parte dele (docs/AUDITORIA.md, terceira rodada). Estes só
+existem no painel:
+
+- **Authentication › Providers › Email** (ou *Sign In / Providers*):
+  *Minimum password length* **8** e *Password requirements* **Letters and
+  digits**. O app já exige o mesmo; o painel garante para quem chamar a API
+  direto.
+- **Authentication › Rate Limits**: os padrões servem. Não aumente.
+- **Authentication › URL Configuration**: só `casadeadoracao://**` fixo (ver
+  "Endereços de retorno").
+- **Google Auth Platform › Público-alvo**: *Publicar app* (escopos básicos não
+  pedem verificação).
+- **Database › Advisors › Security Advisor**: rode depois do `db push`; deve
+  ficar sem alertas vermelhos.
 
 ## Erros do app (monitoramento)
 
