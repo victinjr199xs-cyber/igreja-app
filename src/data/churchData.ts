@@ -26,7 +26,9 @@ export const CHURCH_INFO = {
   /** Transmissão ao vivo do canal (ou o canal, se não houver live agora). */
   youtubeLive: 'https://www.youtube.com/@casadeadoracaoofficial/live',
   /** A App Store exige um link público; o GitHub exibe o arquivo formatado. */
-  privacyPolicy: 'https://github.com/victinjr199xs-cyber/igreja-app/blob/main/PRIVACIDADE.md',
+  // Site da igreja (GitHub Pages, repositório casadeadoracao). Cópia de
+  // referência em PRIVACIDADE.md.
+  privacyPolicy: 'https://victinjr199xs-cyber.github.io/casadeadoracao/privacidade.html',
   /**
    * Dízimos e ofertas. Enquanto a chave estiver vazia, a tela de ofertas fica
    * escondida. Titular e cidade aparecem no app do banco ao pagar e precisam

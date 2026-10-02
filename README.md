@@ -341,7 +341,8 @@ da primeira publicação.**
    - `eas build -p ios --profile production` → envie ao TestFlight com
      `eas submit -p ios`;
    - `eas build -p android --profile production` → AAB para a Play Store.
-5. Política de privacidade: `PRIVACIDADE.md` (link também em Configurações).
+5. Política de privacidade: https://victinjr199xs-cyber.github.io/casadeadoracao/privacidade.html
+   (link em Configurações e na tela de entrada; cópia em `PRIVACIDADE.md`).
 6. **Restrinja a chave do YouTube** no Google Cloud › Credenciais:
    - restrição de API: só *YouTube Data API v3*;
    - restrição de aplicativo: iOS com bundle `com.casadeadoracao.app` e Android
