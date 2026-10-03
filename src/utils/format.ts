@@ -94,6 +94,26 @@ export function greeting(now: Date): string {
   return 'Boa noite';
 }
 
+// Mapa explícito em vez de String.normalize: funciona igual em qualquer motor
+// de JavaScript do celular.
+const ACCENTED = /[áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ]/g;
+const PLAIN: Record<string, string> = {
+  á: 'a', à: 'a', â: 'a', ã: 'a', ä: 'a', é: 'e', è: 'e', ê: 'e', ë: 'e',
+  í: 'i', ì: 'i', î: 'i', ï: 'i', ó: 'o', ò: 'o', ô: 'o', õ: 'o', ö: 'o',
+  ú: 'u', ù: 'u', û: 'u', ü: 'u', ç: 'c', ñ: 'n',
+};
+
+/**
+ * Texto para busca: minúsculo, sem acento e sem espaços nas pontas. Quem
+ * digita "joao" ou "pregacao" no celular acha "João" e "Pregação".
+ */
+export function foldText(s: string): string {
+  return s
+    .replace(ACCENTED, (ch) => PLAIN[ch.toLowerCase()] ?? ch)
+    .toLowerCase()
+    .trim();
+}
+
 /** "AAAA-MM-DD" -> Date local à meia-noite. */
 export function parseDateKey(key: string): Date {
   const [y, m, d] = key.split('-').map(Number);

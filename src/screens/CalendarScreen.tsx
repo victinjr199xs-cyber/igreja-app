@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { Calendar, LocaleConfig, DateData } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +21,7 @@ import {
 import { openChurchMap } from '../services/contactService';
 import { useChurchContent } from '../context/ContentContext';
 import { addToPhoneCalendar, shareInvite } from '../services/agendaService';
+import { useNow } from '../hooks/useNow';
 import {
   DAYS,
   DAYS_SHORT,
@@ -44,18 +45,22 @@ export default function CalendarScreen() {
   const { styles, colors, isDark } = useThemedStyles(makeStyles);
   // Assina o conteúdo online: quando os eventos chegam, a tela redesenha.
   const content = useChurchContent();
-  const [now, setNow] = useState(() => new Date());
+  // A contagem regressiva anda de minuto em minuto (e acerta na volta do
+  // segundo plano).
+  const now = useNow();
   const [selected, setSelected] = useState(() => dateKey(new Date()));
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() };
   });
 
-  // A contagem regressiva anda de minuto em minuto.
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(id);
-  }, []);
+  // Tocar num evento especial de outro mês leva o calendário até ele: as
+  // marcas dos dias precisam acompanhar o mês que passa a aparecer.
+  const selectDate = (key: string) => {
+    setSelected(key);
+    const d = parseDateKey(key);
+    setVisibleMonth({ year: d.getFullYear(), month: d.getMonth() });
+  };
 
   const live = getCurrentEvent(now);
   const next = getNextEvent(now);
@@ -195,7 +200,7 @@ export default function CalendarScreen() {
             {upcomingSpecials.map((e) => {
               const d = parseDateKey(e.date);
               return (
-                <TouchableOpacity key={e.id} style={styles.special} onPress={() => setSelected(e.date)}>
+                <TouchableOpacity key={e.id} style={styles.special} onPress={() => selectDate(e.date)}>
                   <View style={styles.specialDate}>
                     <Text style={styles.specialDay}>{d.getDate()}</Text>
                     <Text style={styles.specialMonth}>
@@ -220,7 +225,7 @@ export default function CalendarScreen() {
             // Remonta ao trocar o tema: o componente guarda os estilos internamente.
             key={isDark ? 'dark' : 'light'}
             current={selected}
-            onDayPress={(d: DateData) => setSelected(d.dateString)}
+            onDayPress={(d: DateData) => selectDate(d.dateString)}
             onMonthChange={(d: DateData) => setVisibleMonth({ year: d.year, month: d.month - 1 })}
             markedDates={markedDates}
             firstDay={0}

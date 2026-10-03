@@ -29,6 +29,7 @@ export const CHURCH_INFO = {
   // Site da igreja (GitHub Pages, repositório casadeadoracao). Cópia de
   // referência em PRIVACIDADE.md.
   privacyPolicy: 'https://victinjr199xs-cyber.github.io/casadeadoracao/privacidade.html',
+  terms: 'https://victinjr199xs-cyber.github.io/casadeadoracao/termos.html',
   /**
    * Dízimos e ofertas. Enquanto a chave estiver vazia, a tela de ofertas fica
    * escondida. Titular e cidade aparecem no app do banco ao pagar e precisam

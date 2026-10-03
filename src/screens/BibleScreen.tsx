@@ -27,6 +27,9 @@ import ScreenHeader from '../components/ScreenHeader';
 import { verseOfDay } from '../data/dailyVerses';
 import { BIBLE_BOOKS, BibleBook, Testament, loadBookChapters } from '../data/bible/books';
 import { BOOK_CATEGORIES, categoryOf } from '../data/bible/categories';
+import { foldText } from '../utils/format';
+import { useNow } from '../hooks/useNow';
+import { onAppEvent } from '../services/appEvents';
 
 const LAST_READ_KEY = 'bible:last';
 
@@ -61,7 +64,9 @@ export default function BibleScreen() {
   const [showFontPanel, setShowFontPanel] = useState(false);
   const readerRef = useRef<ScrollView>(null);
 
-  const [dailyVerse] = useState(() => verseOfDay());
+  // Troca à meia-noite mesmo com a aba aberta (ou o app voltando no dia seguinte).
+  const today = useNow('day');
+  const dailyVerse = useMemo(() => verseOfDay(today), [today]);
 
   // A vista atual é derivada da seleção, e não guardada à parte, para as duas
   // não saírem de sincronia.
@@ -72,6 +77,9 @@ export default function BibleScreen() {
       .then((raw) => raw && setLastRead(JSON.parse(raw)))
       .catch(() => {});
   }, []);
+
+  // "Limpar dados salvos" (Configurações) apagou o "continuar lendo".
+  useEffect(() => onAppEvent('personal-data-cleared', () => setLastRead(null)), []);
 
   // Guarda onde a pessoa parou, para o "Continuar lendo".
   useEffect(() => {
@@ -89,13 +97,14 @@ export default function BibleScreen() {
   );
   const verses = selectedChapter !== null && chapters ? chapters[selectedChapter - 1] : null;
 
-  const query = searchQuery.trim().toLowerCase();
+  // Sem acento dos dois lados: "genesis", "joao" e "isaias" acham o livro.
+  const query = foldText(searchQuery);
   const categories = useMemo(() => {
     // Buscando, mostra os dois testamentos; senão, só a aba escolhida.
     return BOOK_CATEGORIES.map((c) => ({
       ...c,
       books: c.books.filter((b) =>
-        query ? b.name.toLowerCase().includes(query) || b.abbrev.toLowerCase() === query : true
+        query ? foldText(b.name).includes(query) || foldText(b.abbrev) === query : true
       ),
     })).filter((c) => c.books.length > 0 && (query || c.testament === testament));
   }, [query, testament]);
@@ -104,7 +113,9 @@ export default function BibleScreen() {
     const book = bookBySlug(pos.slug);
     if (!book) return;
     setSelectedBook(book);
-    setSelectedChapter(pos.chapter);
+    // Posição gravada ou vinda de fora pode estar fora do livro: abriria vazio.
+    const chapter = Number.isInteger(pos.chapter) ? pos.chapter : 1;
+    setSelectedChapter(Math.min(Math.max(1, chapter), book.chapters));
   };
 
   // Vindo do "continue de onde parou" da Início: abre direto no capítulo.

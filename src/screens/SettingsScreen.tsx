@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   Linking,
+  AppState,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -27,6 +28,7 @@ import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { clearYoutubeCache } from '../services/youtubeService';
+import { emitAppEvent } from '../services/appEvents';
 import { openChurchMap, whatsappChurch } from '../services/contactService';
 import { CHURCH_ADDRESS, CHURCH_INFO } from '../data/churchData';
 
@@ -54,10 +56,18 @@ export default function SettingsScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const [permission, setPermission] = useState<string | null>(null);
 
+  // Confere de novo na volta dos ajustes do celular: quem liberou as
+  // notificações lá não deve continuar vendo o aviso de bloqueadas.
   useEffect(() => {
-    Notifications.getPermissionsAsync()
-      .then((p) => setPermission(p.status))
-      .catch(() => {});
+    const check = () =>
+      Notifications.getPermissionsAsync()
+        .then((p) => setPermission(p.status))
+        .catch(() => {});
+    check();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') check();
+    });
+    return () => sub.remove();
   }, []);
 
   const toggleNotification = async (key: (typeof NOTIFICATION_OPTIONS)[number]['key'], value: boolean) => {
@@ -91,6 +101,9 @@ export default function SettingsScreen() {
           onPress: async () => {
             await clearYoutubeCache(true).catch(() => {});
             await AsyncStorage.removeItem('bible:last').catch(() => {});
+            // As abas Pregações e Bíblia seguem abertas por trás, com o
+            // "continuar" ainda na memória.
+            emitAppEvent('personal-data-cleared');
             Alert.alert('Pronto', 'Os dados salvos foram apagados.');
           },
         },
@@ -275,6 +288,14 @@ export default function SettingsScreen() {
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>Política de privacidade</Text>
             <Text style={styles.rowDetail}>Sem anúncios nem rastreamento</Text>
+          </View>
+          <Ionicons name="open-outline" size={18} color={colors.gray} />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.row, styles.rowDivider]} onPress={() => Linking.openURL(CHURCH_INFO.terms)}>
+          <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Termos de uso</Text>
+            <Text style={styles.rowDetail}>Regras de uso do app e da conta</Text>
           </View>
           <Ionicons name="open-outline" size={18} color={colors.gray} />
         </TouchableOpacity>

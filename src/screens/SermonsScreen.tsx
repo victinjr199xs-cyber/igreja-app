@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   TextInput,
   Linking,
+  RefreshControl,
 } from 'react-native';
 import { PLAYER_STATES, YoutubeIframeRef } from 'react-native-youtube-iframe';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,7 +30,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import SectionHeader from '../components/SectionHeader';
 import VideoRow, { ThumbOverlay, watchedFraction } from '../components/sermons/VideoRow';
 import VideoPlayerModal from '../components/sermons/VideoPlayerModal';
-import { MONTHS, formatClock, formatDuration, formatShortDate } from '../utils/format';
+import { MONTHS, foldText, formatClock, formatDuration, formatShortDate } from '../utils/format';
 import { CHURCH_INFO, getCurrentEvent } from '../data/churchData';
 import {
   Serie,
@@ -42,7 +43,11 @@ import {
   recordWatch,
   removeFromHistory,
   inProgress,
+  isFinished,
+  resumePoint,
 } from '../services/youtubeService';
+import { emitAppEvent, onAppEvent } from '../services/appEvents';
+import { useNow } from '../hooks/useNow';
 
 
 type Tab = 'destaques' | 'series' | 'cultos';
@@ -80,8 +85,11 @@ export default function SermonsScreen() {
   const [player, setPlayer] = useState<PlayerState | null>(null);
   const [history, setHistory] = useState<WatchHistory>({});
   const playerRef = useRef<YoutubeIframeRef | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [liveEvent] = useState(() => getCurrentEvent());
+  // A aba fica montada: sem o relógio andando, o aviso de culto ao vivo não
+  // apareceria para quem a abriu antes do culto começar.
+  const liveEvent = getCurrentEvent(useNow());
 
   // Vindo da Início ("continue de onde parou" ou última ministração): abre o
   // player direto. Sem start explícito, retoma pelo histórico.
@@ -93,8 +101,7 @@ export default function SermonsScreen() {
     if (!video) return;
     closeSerie();
     loadHistory().then((h) => {
-      const entry = h[video.id];
-      const start = params?.start || (entry && !entry.finished ? entry.seconds : 0);
+      const start = params?.start || resumePoint(h, video);
       setPlayer({ list: [video], index: 0, start });
     });
     navigation.setParams({ playVideo: undefined, start: undefined });
@@ -124,6 +131,35 @@ export default function SermonsScreen() {
     loadCultos();
     loadHistory().then(setHistory);
   }, [loadSeries, loadCultos]);
+
+  // "Limpar dados salvos" (Configurações) apagou o histórico do aparelho.
+  useEffect(() => onAppEvent('personal-data-cleared', () => setHistory({})), []);
+
+  // Puxar a tela para baixo: busca de novo, sem esperar o cache vencer (culto
+  // que acabou de subir no canal aparece na hora).
+  const refreshAll = () => {
+    setRefreshing(true);
+    Promise.allSettled([
+      fetchSeries({ force: true }).then((s) => {
+        setSeries(s);
+        setSeriesError(null);
+      }),
+      fetchCultos(undefined, { force: true }).then((page) => {
+        setCultos(page.videos);
+        setCultosToken(page.nextPageToken);
+        setCultosError(null);
+      }),
+    ]).finally(() => setRefreshing(false));
+  };
+
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={refreshAll}
+      tintColor={colors.primary}
+      colors={[colors.primary]}
+    />
+  );
 
   // Qual série está aberta agora, para descartar a resposta atrasada de uma
   // série que a pessoa já fechou.
@@ -167,9 +203,15 @@ export default function SermonsScreen() {
 
   /** Toca a partir de onde a pessoa parou, se ela não terminou o vídeo. */
   const play = (list: Video[], index: number) => {
-    const entry = history[list[index].id];
-    setPlayer({ list, index, start: entry && !entry.finished ? entry.seconds : 0 });
+    setPlayer({ list, index, start: resumePoint(history, list[index]) });
   };
+
+  // Vídeo começou: a rádio (outra aba, que segue tocando em segundo plano)
+  // para, senão os dois áudios tocam juntos.
+  const currentId = player ? player.list[player.index].id : null;
+  useEffect(() => {
+    if (currentId) emitAppEvent('video-start');
+  }, [currentId]);
 
   // getCurrentTime conversa com o WebView; se ele não responder, não pode
   // travar o botão de fechar.
@@ -179,22 +221,42 @@ export default function SermonsScreen() {
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
     ]).catch(() => null);
 
+  /** Guarda até onde a pessoa assistiu (menos de 30 s não conta como começado). */
+  const saveProgress = (video: Video, seconds: number | null) => {
+    if (seconds === null || seconds < 30) return;
+    setHistory((h) => recordWatch(h, video, seconds, isFinished(video, seconds)));
+  };
+
   const closePlayer = async () => {
     const current = player ? player.list[player.index] : null;
     const seconds = await readCurrentTime();
     setPlayer(null);
-    if (!current || seconds === null || seconds < 30) return;
-    const finished = current.durationSeconds > 0 && seconds >= current.durationSeconds - 60;
-    setHistory((h) => recordWatch(h, current, seconds, finished));
+    if (current) saveProgress(current, seconds);
+  };
+
+  /** Próximo da lista, retomando de onde a pessoa parou nele. */
+  const advance = (from: PlayerState, h: WatchHistory) => {
+    const index = from.index + 1;
+    if (index >= from.list.length) return;
+    setPlayer({ ...from, index, start: resumePoint(h, from.list[index]) });
+  };
+
+  // "A seguir": antes de trocar, guarda o ponto do vídeo atual. Sem isso,
+  // quem viu 40 min de um culto e pulou para o próximo perdia o "continuar".
+  const playNext = async () => {
+    if (!player) return;
+    const from = player;
+    const seconds = await readCurrentTime();
+    saveProgress(from.list[from.index], seconds);
+    advance(from, history);
   };
 
   const onPlayerState = (state: PLAYER_STATES) => {
     if (state !== PLAYER_STATES.ENDED || !player) return;
     const current = player.list[player.index];
-    setHistory((h) => recordWatch(h, current, current.durationSeconds, true));
-    if (player.index < player.list.length - 1) {
-      setPlayer({ ...player, index: player.index + 1, start: 0 });
-    }
+    const next = recordWatch(history, current, current.durationSeconds, true);
+    setHistory(next);
+    advance(player, next);
   };
 
   const current = player ? player.list[player.index] : null;
@@ -203,8 +265,9 @@ export default function SermonsScreen() {
 
   // Cultos agrupados por mês, filtrados pela busca.
   const cultoSections = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const list = (cultos ?? []).filter((v) => !q || v.title.toLowerCase().includes(q));
+    // Sem acento dos dois lados: "pregacao" acha "Pregação".
+    const q = foldText(search);
+    const list = (cultos ?? []).filter((v) => !q || foldText(v.title).includes(q));
     const sections: { title: string; data: Video[] }[] = [];
     for (const v of list) {
       const d = new Date(v.publishedAt);
@@ -265,7 +328,11 @@ export default function SermonsScreen() {
     });
     const hero = cultos?.[0];
     return (
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
         {liveEvent && (
           <TouchableOpacity
             style={styles.liveBanner}
@@ -462,6 +529,7 @@ export default function SermonsScreen() {
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
+        refreshControl={refreshControl}
         ListHeaderComponent={
           <View style={styles.searchBox}>
             <Ionicons name="search-outline" size={18} color={colors.gray} />
@@ -542,6 +610,7 @@ export default function SermonsScreen() {
                 numColumns={2}
                 columnWrapperStyle={styles.serieColumns}
                 contentContainerStyle={styles.listContent}
+                refreshControl={refreshControl}
               />
             ) : (
               renderState(seriesError, loadSeries)
@@ -558,7 +627,7 @@ export default function SermonsScreen() {
         playerRef={playerRef}
         onClose={closePlayer}
         onChangeState={onPlayerState}
-        onPlayNext={() => player && setPlayer({ ...player, index: player.index + 1, start: 0 })}
+        onPlayNext={playNext}
       />
     </View>
   );

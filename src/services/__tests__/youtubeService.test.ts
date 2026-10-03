@@ -1,4 +1,12 @@
-import { Video, WatchHistory, inProgress, parseDuration, recordWatch } from '../youtubeService';
+import {
+  Video,
+  WatchHistory,
+  inProgress,
+  isFinished,
+  parseDuration,
+  recordWatch,
+  resumePoint,
+} from '../youtubeService';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -58,5 +66,23 @@ describe('histórico de reprodução', () => {
     expect(Object.keys(h)).toHaveLength(60);
     expect(h.v0).toBeUndefined();
     expect(h.v64).toBeDefined();
+  });
+});
+
+describe('retomar e terminar', () => {
+  it('retoma de onde parou; terminado ou nunca visto começa do zero', () => {
+    let h: WatchHistory = {};
+    h = recordWatch(h, video('a'), 1500, false);
+    h = recordWatch(h, video('b'), 3600, true);
+    expect(resumePoint(h, video('a'))).toBe(1500);
+    expect(resumePoint(h, video('b'))).toBe(0);
+    expect(resumePoint(h, video('c'))).toBe(0);
+  });
+
+  it('o último minuto (créditos) conta como terminado', () => {
+    expect(isFinished(video('a', 3600), 3545)).toBe(true);
+    expect(isFinished(video('a', 3600), 3500)).toBe(false);
+    // Duração desconhecida (live): nunca dá como terminado.
+    expect(isFinished(video('a', 0), 99999)).toBe(false);
   });
 });

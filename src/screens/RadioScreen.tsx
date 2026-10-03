@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SIZES, FONTS, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
 import ScreenHeader from '../components/ScreenHeader';
+import { onAppEvent } from '../services/appEvents';
 import {
   RADIO_LANGUAGES,
   RADIO_STATIONS,
@@ -92,6 +93,17 @@ export default function RadioScreen() {
   useEffect(() => {
     if (wantsToPlay) player.play();
   }, [player]);
+
+  // Um vídeo começou na aba Pregações (ou pela Início): pausa a rádio, que
+  // seguiria tocando por cima. A pessoa retoma pelo play quando quiser.
+  useEffect(
+    () =>
+      onAppEvent('video-start', () => {
+        setWantsToPlay(false);
+        player.pause();
+      }),
+    [player]
+  );
 
   // Notificação de mídia (Android) e controles da tela de bloqueio / Central de
   // Controle (iOS). No Android é também o que mantém o serviço em primeiro

@@ -9,8 +9,10 @@ export const MIN_PASSWORD_LENGTH = 8;
 export const PASSWORD_RULE = `mín. ${MIN_PASSWORD_LENGTH} caracteres, com letras e números`;
 
 export function isStrongPassword(password: string): boolean {
+  // Faixa explícita (A–Z e acentuadas) em vez de \p{L}: sem depender de
+  // recurso de expressão regular que o motor do celular pode não ter.
   return (
-    password.length >= MIN_PASSWORD_LENGTH && /\p{L}/u.test(password) && /\d/.test(password)
+    password.length >= MIN_PASSWORD_LENGTH && /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(password) && /\d/.test(password)
   );
 }
 

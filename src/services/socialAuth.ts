@@ -2,11 +2,39 @@ import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { supabase } from './supabase';
+import { supabase, SUPABASE_PUBLIC_KEY, SUPABASE_URL } from './supabase';
 import { parseAuthCallback } from '../utils/account';
 
 /** A pessoa fechou o navegador ou a janela da Apple: não é erro para mostrar. */
 export class AuthCanceledError extends Error {}
+
+/**
+ * signInWithOAuth só monta o endereço, sem perguntar nada ao servidor. Com o
+ * provedor mal configurado no Supabase (ex.: "missing OAuth secret"), o
+ * navegador abriria numa página de erro em JSON, em inglês, e a pessoa ficaria
+ * sem entender. Confere antes e devolve o erro para a tela traduzir.
+ * Sem rede ou demorando, não atrapalha: deixa o navegador tentar.
+ */
+export async function assertProviderReady(provider: 'google'): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  let problem: string | null = null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/authorize?provider=${provider}`, {
+      headers: { apikey: SUPABASE_PUBLIC_KEY },
+      signal: controller.signal,
+    });
+    if (res.status >= 400 && res.status < 500) {
+      const body = await res.json().catch(() => null);
+      problem = typeof body?.msg === 'string' ? body.msg : `authorize respondeu ${res.status}`;
+    }
+  } catch {
+    // Sem rede, tempo esgotado: o navegador mostra o próprio erro.
+  } finally {
+    clearTimeout(timer);
+  }
+  if (problem) throw new Error(problem);
+}
 
 /**
  * Google pelo navegador do sistema (funciona no Expo Go e no APK, sem módulo
@@ -14,6 +42,7 @@ export class AuthCanceledError extends Error {}
  * o app; a sessão chega pelo onAuthStateChange.
  */
 export async function signInWithGoogle(): Promise<void> {
+  await assertProviderReady('google');
   // Expo Go: exp://<ip>:8081/--/auth-callback. APK/iOS: casadeadoracao://auth-callback.
   const redirectTo = Linking.createURL('auth-callback');
   const { data, error } = await supabase.auth.signInWithOAuth({

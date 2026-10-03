@@ -3,6 +3,7 @@ import {
   daysBetween,
   describeDay,
   describeWhen,
+  foldText,
   formatClock,
   formatDuration,
   formatLongDate,
@@ -15,6 +16,27 @@ import {
 
 // 29/09/2026 é uma terça-feira.
 const TUE = new Date(2026, 8, 29, 10, 0);
+
+describe('busca sem acento (foldText)', () => {
+  it('tira acento, cedilha e maiúsculas', () => {
+    expect(foldText('Gênesis')).toBe('genesis');
+    expect(foldText('ÊXODO')).toBe('exodo');
+    expect(foldText('1 João')).toBe('1 joao');
+    expect(foldText('Pregação  ')).toBe('pregacao');
+    expect(foldText('Isaías')).toBe('isaias');
+  });
+
+  it('o que a pessoa digita acha o título com acento', () => {
+    const titulo = foldText('Culto de Domingo · Ministração: Fé e Oração');
+    expect(titulo.includes(foldText('ministracao'))).toBe(true);
+    expect(titulo.includes(foldText('FÉ E ORACAO'))).toBe(true);
+  });
+
+  it('não mexe no que não tem acento', () => {
+    expect(foldText('Salmos 23')).toBe('salmos 23');
+    expect(foldText('')).toBe('');
+  });
+});
 
 describe('durações e posições de vídeo', () => {
   it('formata duração em horas e minutos', () => {

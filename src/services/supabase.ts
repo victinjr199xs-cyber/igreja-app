@@ -28,6 +28,8 @@ const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 export const SUPABASE_CONFIGURED = url.startsWith('https://') && anonKey.length > 20;
+export const SUPABASE_URL = url;
+export const SUPABASE_PUBLIC_KEY = anonKey;
 
 export const supabase = createClient(
   // Sem configuração, um endereço inválido: as chamadas falham com erro claro

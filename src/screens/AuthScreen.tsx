@@ -530,7 +530,11 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
             )}
 
             <Text style={styles.legal}>
-              Ao continuar, você concorda com a{' '}
+              Ao continuar, você concorda com os{' '}
+              <Text style={styles.legalLink} onPress={() => Linking.openURL(CHURCH_INFO.terms)}>
+                Termos de Uso
+              </Text>{' '}
+              e a{' '}
               <Text style={styles.legalLink} onPress={() => Linking.openURL(CHURCH_INFO.privacyPolicy)}>
                 Política de Privacidade
               </Text>

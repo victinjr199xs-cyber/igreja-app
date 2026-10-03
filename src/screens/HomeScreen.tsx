@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -39,6 +39,7 @@ import { whatsappChurch } from '../services/contactService';
 import { GIVING_ENABLED } from './GiveScreen';
 import { activeAnnouncements, useChurchContent } from '../context/ContentContext';
 import { useAuth } from '../context/AuthContext';
+import { useNow } from '../hooks/useNow';
 import {
   DAYS,
   describeWhen,
@@ -63,8 +64,11 @@ export default function HomeScreen() {
   const { styles, colors } = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
-  const [now, setNow] = useState(() => new Date());
+  // Anda sozinho: "faltam 5 min" vira "acontecendo agora" sem sair da tela, e
+  // a saudação e o versículo trocam se o app voltar do segundo plano amanhã.
+  const now = useNow();
   const [latest, setLatest] = useState<Video | null>(null);
+  const latestRef = useRef<Video | null>(null);
   const [cont, setCont] = useState<ContinueState>({ bible: null, video: null, radio: null });
 
   // Avisos e eventos editáveis (content/igreja.json); também faz a tela
@@ -77,19 +81,23 @@ export default function HomeScreen() {
   const next = getNextEvent(now);
   const verse = verseOfDay(now);
 
-  useEffect(() => {
-    // Mesma busca (e cache) da aba Pregações. Sem chave ou sem rede, o card
-    // simplesmente não aparece.
+  // Mesma busca (e cache) da aba Pregações. Sem rede, o card simplesmente não
+  // aparece, e a busca é refeita na próxima vez que a pessoa voltar à Início.
+  const loadLatest = useCallback(() => {
+    if (latestRef.current) return;
     fetchCultos()
-      .then((page) => setLatest(page.videos[0] ?? null))
+      .then((page) => {
+        latestRef.current = page.videos[0] ?? null;
+        setLatest(latestRef.current);
+      })
       .catch(() => {});
   }, []);
 
   // A Início fica montada enquanto a pessoa usa as outras abas: o "continue de
-  // onde parou" e o relógio se atualizam sempre que ela volta para cá.
+  // onde parou" se atualiza sempre que ela volta para cá.
   useFocusEffect(
     useCallback(() => {
-      setNow(new Date());
+      loadLatest();
       Promise.all([
         AsyncStorage.getItem(BIBLE_LAST_KEY).catch(() => null),
         loadHistory(),
@@ -109,7 +117,7 @@ export default function HomeScreen() {
           radio: RADIO_STATIONS.find((s) => s.id === radioId) ?? null,
         });
       });
-    }, [])
+    }, [loadLatest])
   );
 
   const shareVerse = () => {

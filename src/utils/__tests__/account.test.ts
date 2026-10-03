@@ -8,6 +8,11 @@ describe('isStrongPassword', () => {
     expect(isStrongPassword('somenteletras')).toBe(false);
     expect(isStrongPassword('1234567890')).toBe(false);
   });
+
+  it('aceita letra acentuada como letra', () => {
+    expect(isStrongPassword('çãéíõú12')).toBe(true);
+    expect(isStrongPassword('!!!!!!!1')).toBe(false); // só símbolo e número
+  });
 });
 
 describe('nameFromMetadata', () => {

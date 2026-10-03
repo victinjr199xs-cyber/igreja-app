@@ -212,9 +212,14 @@ interface PlaylistsResponse {
   }[];
 }
 
+/** force: ignora o cache (puxar a tela para atualizar). */
+export interface FetchOptions {
+  force?: boolean;
+}
+
 /** As playlists do canal, que são as séries de ministração. */
-export function fetchSeries(): Promise<Serie[]> {
-  return cached('yt:series', TTL_SERIES, async () => {
+export function fetchSeries({ force }: FetchOptions = {}): Promise<Serie[]> {
+  return cached('yt:series', force ? 0 : TTL_SERIES, async () => {
     const res = await get<PlaylistsResponse>('playlists', {
       part: 'snippet,contentDetails',
       channelId: CHANNEL_ID,
@@ -235,8 +240,8 @@ export function fetchSeries(): Promise<Serie[]> {
  * Todos os vídeos de uma série. Hoje a maior tem 22, mas elas crescem: sem
  * seguir as páginas, uma série com mais de 50 seria cortada em silêncio.
  */
-export function fetchSerieVideos(playlistId: string): Promise<Video[]> {
-  return cached(`yt:serie:${playlistId}`, TTL_SERIE_VIDEOS, async () => {
+export function fetchSerieVideos(playlistId: string, { force }: FetchOptions = {}): Promise<Video[]> {
+  return cached(`yt:serie:${playlistId}`, force ? 0 : TTL_SERIE_VIDEOS, async () => {
     const all: Video[] = [];
     let pageToken: string | undefined;
     do {
@@ -252,7 +257,7 @@ export function fetchSerieVideos(playlistId: string): Promise<Video[]> {
  * Cultos e ministrações completas, do mais recente para o mais antigo. Só a
  * primeira página entra em cache; as seguintes são buscadas sob demanda.
  */
-export async function fetchCultos(pageToken?: string): Promise<CultosPage> {
+export async function fetchCultos(pageToken?: string, { force }: FetchOptions = {}): Promise<CultosPage> {
   const load = async () => {
     const page = await fetchPlaylistPage(UPLOADS_PLAYLIST_ID, pageToken);
     return {
@@ -260,7 +265,18 @@ export async function fetchCultos(pageToken?: string): Promise<CultosPage> {
       nextPageToken: page.nextPageToken,
     };
   };
-  return pageToken ? load() : cached('yt:cultos', TTL_CULTOS, load);
+  return pageToken ? load() : cached('yt:cultos', force ? 0 : TTL_CULTOS, load);
+}
+
+/** Onde retomar: o ponto em que a pessoa parou, se ela não terminou o vídeo. */
+export function resumePoint(history: WatchHistory, video: Video): number {
+  const entry = history[video.id];
+  return entry && !entry.finished ? entry.seconds : 0;
+}
+
+/** Terminou = chegou ao último minuto (os créditos finais não contam). */
+export function isFinished(video: Video, seconds: number): boolean {
+  return video.durationSeconds > 0 && seconds >= video.durationSeconds - 60;
 }
 
 // Histórico de reprodução: um registro por vídeo, para o "continuar

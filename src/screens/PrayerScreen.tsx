@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SIZES, Palette } from '../constants/theme';
 import { useThemedStyles } from '../context/SettingsContext';
+import { useAuth } from '../context/AuthContext';
 import { CHURCH_INFO } from '../data/churchData';
 
 /**
@@ -23,7 +24,9 @@ import { CHURCH_INFO } from '../data/churchData';
  */
 export default function PrayerScreen() {
   const { styles, colors } = useThemedStyles(makeStyles);
-  const [name, setName] = useState('');
+  const { displayName } = useAuth();
+  // Já vem com o nome da conta; quem preferir pedir anonimamente apaga.
+  const [name, setName] = useState(displayName);
   const [request, setRequest] = useState('');
   const [wantsContact, setWantsContact] = useState(false);
 
