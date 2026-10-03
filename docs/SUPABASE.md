@@ -143,6 +143,21 @@ outra pessoa.
 
 A chave secreta fica só no Supabase, nunca no app.
 
+**Conferir se ficou certo** (sem logar ninguém), no navegador do computador:
+`https://ufiebjhckkmdyrfnbxka.supabase.co/auth/v1/authorize?provider=google`
+
+- Abre a tela "Escolha uma conta" do Google: está certo.
+- Aparece `Unsupported provider: missing OAuth secret`: a **chave secreta**
+  não foi salva (o Supabase não mostra a chave depois de salva, então salve
+  de novo). No Google Cloud, a chave só aparece na criação; se não tiver
+  mais, abra o cliente OAuth › **Add secret** e use a nova.
+- Aparece `redirect_uri_mismatch`: falta o endereço
+  `https://ufiebjhckkmdyrfnbxka.supabase.co/auth/v1/callback` nos URIs de
+  redirecionamento do cliente no Google Cloud.
+
+No app, enquanto não estiver certo, o botão mostra "Essa forma de entrar
+ainda não foi ativada. Use o e-mail."
+
 ### Apple (iPhone)
 
 1. Supabase › **Authentication › Sign In / Providers › Apple** › ativar.

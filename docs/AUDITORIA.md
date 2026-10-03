@@ -72,6 +72,48 @@ Ficou de fora, de propósito:
   ferramentas de build do Expo, fora do app. Aguardar o Expo; **não** usar
   `--force`.
 
+## Quarta rodada — 03/10/2026 (madrugada): revisão de todas as telas
+
+Sinais de produção (Supabase, só leitura): 4 contas, todas por e-mail; zero
+erros e zero avaliações registrados desde a migração de 02/10. Um autoteste
+em transação com ROLLBACK confirmou que o registro de erros, as avaliações
+(com autor/data pelo banco e limite por minuto) e as regras da foto
+funcionam; nada ficou gravado. Security Advisor: só `delete_own_account`
+(intencional: é o botão "Excluir conta") e "senhas vazadas" (plano pago).
+
+**Login com Google nunca funcionou**: o Supabase responde
+`Unsupported provider: missing OAuth secret` (Client Secret não salvo em
+Providers › Google). Zero identidades Google no banco. Só o painel resolve
+(docs/SUPABASE.md › Google, passo 4). O app agora avisa em português em vez
+de abrir a página de erro.
+
+Rádios: 21 de 22 tocando. **Sara Brasil FM** sem nenhum canal no servidor
+(02h e 02h27); pode ser só a madrugada. Se continuar de dia, trocar o
+endereço (radio-browser.info) ou tirar da lista.
+
+| Falha | Correção |
+|---|---|
+| Início, Pregações e Bíblia liam o relógio só ao abrir: "faltam 5 min", "acontecendo agora", saudação e versículo do dia paravam (app aberto, ou voltando no dia seguinte) | `hooks/useNow.ts` (a cada minuto e na volta do segundo plano); Programação também |
+| Busca dependia de acento ("genesis", "joao", "pregacao" não achavam nada) | `foldText` na Bíblia e nos cultos |
+| "A seguir" trocava de vídeo sem salvar o ponto; o próximo começava do zero | `playNext` salva antes; `resumePoint` no próximo |
+| Rádio seguia tocando por cima do vídeo | `appEvents` 'video-start' pausa a rádio |
+| Evento especial de outro mês: marcas do calendário do mês antigo | `selectDate` acompanha o mês |
+| "Limpar dados salvos" não limpava o "continuar" já na memória | `appEvents` 'personal-data-cleared' |
+| Aviso de notificações bloqueadas não sumia ao liberar nos ajustes | Confere de novo na volta do app |
+| Google mal configurado abria JSON de erro em inglês | `assertProviderReady` antes do navegador |
+| Capítulo gravado fora do livro abria vazio | `openPosition` limita ao livro |
+
+Melhorias: puxar para atualizar nas Pregações; Última ministração tenta de
+novo sem internet; nome da conta no Pedido de oração; Termos de Uso no app.
+92 testes; export de produção iOS/Android compilado em Hermes.
+
+Fica para depois (precisa de conta paga ou decisão):
+- **Apple: revogar o token ao excluir a conta** (exigência da App Store para
+  quem usa "Entrar com a Apple"). Precisa da chave da conta Apple Developer
+  e de uma Edge Function; fazer junto com a publicação no iOS.
+- Lembretes de eventos especiais (hoje só os cultos semanais avisam).
+- Tocar na notificação abrir a tela certa (versículo → Bíblia).
+
 ## Pendências da primeira rodada (por prioridade)
 
 ### Alta — resolver antes de ampliar a distribuição
