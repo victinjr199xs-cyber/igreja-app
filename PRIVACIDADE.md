@@ -1,6 +1,6 @@
 # Política de Privacidade — App Casa de Adoração
 
-_Última atualização: 2 de outubro de 2026_
+_Última atualização: 13 de outubro de 2026_
 
 > Versão publicada (é a que o app abre):
 > https://victinjr199xs-cyber.github.io/casadeadoracao/privacidade.html
@@ -13,8 +13,7 @@ quais dados o app usa e para quê.
 
 ## Resumo
 
-- Para usar o app é preciso **ter uma conta**: criada com nome, e-mail e
-  senha, ou entrando com o **Google** (no iPhone, também com a **Apple**).
+- Para usar o app é preciso **criar uma conta** com nome, e-mail e senha.
 - **Não há anúncios** nem ferramentas de análise ou rastreamento.
 - Fora os dados da conta, as avaliações que você enviar e os relatórios de
   erro, o que o app guarda fica **só no seu celular**.
@@ -27,26 +26,6 @@ forma criptografada; ninguém da igreja tem acesso a ela). Esses dados ficam no
 [Supabase](https://supabase.com/privacy), serviço de autenticação usado pelo
 app, e servem apenas para você entrar no app e recuperar a senha. O e-mail
 também é usado para enviar os códigos de confirmação e de redefinição de senha.
-
-## Entrar com Google ou Apple
-
-Se você entrar com o **Google**, o app recebe do Google apenas o seu nome, o
-seu e-mail, o link da sua foto de perfil e um código que identifica a sua conta
-Google. Esses dados ficam no Supabase, junto com a sua conta, e servem só para
-identificar você e mostrar seu nome e sua foto no app. O app não recebe a sua
-senha do Google nem tem acesso a outros dados da sua Conta do Google, como
-e-mails, contatos ou arquivos.
-
-Os dados recebidos do Google não são vendidos, não são compartilhados com
-terceiros e não são usados para anúncios. O uso dessas informações segue a
-[Política de Dados do Usuário dos Serviços de API do Google](https://developers.google.com/terms/api-services-user-data-policy),
-incluindo os requisitos de uso limitado. Você pode tirar o acesso do app à sua
-conta Google a qualquer momento em
-[myaccount.google.com/connections](https://myaccount.google.com/connections).
-
-Se você entrar com a **Apple** (só no iPhone), o app recebe o seu nome (apenas
-no primeiro acesso) e o seu e-mail, que pode ser um endereço de encaminhamento
-da Apple se você escolher ocultar o seu.
 
 ## Foto de perfil
 
@@ -98,7 +77,6 @@ conexão (como o endereço IP), conforme as políticas de cada um:
   reproduzir as pregações do canal da igreja. Veja os
   [Termos de Serviço do YouTube](https://www.youtube.com/t/terms) e a
   [Política de Privacidade do Google](https://policies.google.com/privacy).
-- **Google e Apple**: login, quando você escolhe entrar com essas contas.
 - **Rádios**: o áudio vem direto do servidor de cada emissora.
 - **GitHub**: o app baixa de lá o arquivo público de avisos e eventos da igreja.
 

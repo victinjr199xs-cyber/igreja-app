@@ -114,6 +114,27 @@ Fica para depois (precisa de conta paga ou decisão):
 - Lembretes de eventos especiais (hoje só os cultos semanais avisam).
 - Tocar na notificação abrir a tela certa (versículo → Bíblia).
 
+## Quinta rodada — 13/10/2026: projeto pausado e fim do login social
+
+**O projeto Supabase estava pausado** (status `INACTIVE`; o endereço
+`ufiebjhckkmdyrfnbxka.supabase.co` nem existia mais no DNS). O plano gratuito
+pausa depois de 7 dias sem uso, e o app inteiro (login, vídeos, avaliações,
+fotos) ficou fora do ar. Reativar: painel › *Restore project*. Prevenir: ping
+semanal ou plano Pro.
+
+**Login com Google e Apple retirado**, ficando só e-mail e senha. Saíram:
+`socialAuth.ts` (e o teste), os botões, `signInWithProvider`/`providers`, o
+`isFreshAccount`, o `flowType: 'pkce'`, o `scheme`, `usesAppleSignIn`, os
+plugins e os pacotes `expo-apple-authentication`, `expo-web-browser` e
+`expo-linking`. Com o Google fora, a regra 4.8 da App Store (oferecer a Apple)
+deixa de valer, e some a pendência de revogar o token da Apple ao excluir a
+conta. Política de privacidade atualizada (cópia em `PRIVACIDADE.md`; a do site
+precisa do mesmo ajuste). 85 testes.
+
+Pendente: o Expo lançou correções de versão (`expo` 57.0.28, `expo-updates`
+57.0.26, `expo-notifications` 57.0.22 e outras 6). Atualizar mexe nos módulos
+nativos: fazer junto com o próximo APK (`npx expo install --check`).
+
 ## Pendências da primeira rodada (por prioridade)
 
 ### Alta — resolver antes de ampliar a distribuição

@@ -102,88 +102,27 @@ O botão **Configurações › Conta › Excluir conta** chama essa função.
 > schema. O **Security Advisor** do Supabase aponta isso como
 > *function_search_path_mutable*.
 
-## Entrar com Google e Apple
+## Login: só e-mail e senha
 
-A tela de entrada mostra **Continuar com Google** (Android e iPhone) e o botão
-da **Apple** (só no iPhone). O e-mail com senha continua embaixo. Enquanto os
-provedores não estiverem ativos, o botão avisa "Essa forma de entrar ainda não
-foi ativada. Use o e-mail.".
+O app entra **só com e-mail e senha** (cadastro com código de 6 dígitos). O
+login com Google e com a Apple foi **retirado em 13/10/2026**: o Google nunca
+chegou a funcionar (faltava a chave secreta no Supabase) e a Apple só valia
+para a regra da App Store que exige a Apple quando há outro login social.
+Sem os dois, essa regra não se aplica.
 
-Se o e-mail do Google for o mesmo de uma conta já criada por e-mail, o Supabase
-junta as duas: é a mesma pessoa, com a mesma foto e o mesmo histórico.
+Para o Supabase, nada disso é necessário. Pode **desligar** os dois em
+Authentication › Sign In / Providers (Google e Apple) e apagar o cliente OAuth
+no Google Cloud: menos coisa exposta. Em Authentication › URL Configuration ›
+Redirect URLs não precisa de endereço nenhum.
 
-### Endereços de retorno (fazer primeiro)
-
-Supabase › **Authentication › URL Configuration › Redirect URLs** › *Add URL*:
-
-```
-casadeadoracao://**
-```
-
-Para testar no **Expo Go**, adicione também o endereço do seu computador, o
-que aparece no `npx expo start` (ex.: `exp://192.168.0.10:8081/**`), e
-**remova depois**. Não deixe `exp://**` liberado de vez: um link de login
-malicioso poderia mandar a sessão para o Expo Go apontando para o servidor de
-outra pessoa.
-
-### Google
-
-1. [console.cloud.google.com](https://console.cloud.google.com) › o mesmo
-   projeto da chave do YouTube › **APIs e serviços › Tela de consentimento
-   OAuth** (ou "Google Auth Platform"): tipo **Externo**, nome "Casa de
-   Adoração", e-mail de suporte, logo. Publique (**Publicar app**) para não
-   ficar limitado a usuários de teste.
-2. **Credenciais › Criar credenciais › ID do cliente OAuth** › tipo
-   **Aplicativo da Web** (sim, Web: quem conversa com o Google é o Supabase).
-   - *URIs de redirecionamento autorizados*:
-     `https://ufiebjhckkmdyrfnbxka.supabase.co/auth/v1/callback`
-3. Copie o **ID do cliente** e a **Chave secreta**.
-4. Supabase › **Authentication › Sign In / Providers › Google** › ativar ›
-   colar os dois › *Save*.
-
-A chave secreta fica só no Supabase, nunca no app.
-
-**Conferir se ficou certo** (sem logar ninguém), no navegador do computador:
-`https://ufiebjhckkmdyrfnbxka.supabase.co/auth/v1/authorize?provider=google`
-
-- Abre a tela "Escolha uma conta" do Google: está certo.
-- Aparece `Unsupported provider: missing OAuth secret`: a **chave secreta**
-  não foi salva (o Supabase não mostra a chave depois de salva, então salve
-  de novo). No Google Cloud, a chave só aparece na criação; se não tiver
-  mais, abra o cliente OAuth › **Add secret** e use a nova.
-- Aparece `redirect_uri_mismatch`: falta o endereço
-  `https://ufiebjhckkmdyrfnbxka.supabase.co/auth/v1/callback` nos URIs de
-  redirecionamento do cliente no Google Cloud.
-
-No app, enquanto não estiver certo, o botão mostra "Essa forma de entrar
-ainda não foi ativada. Use o e-mail."
-
-### Apple (iPhone)
-
-1. Supabase › **Authentication › Sign In / Providers › Apple** › ativar.
-2. Em **Client IDs**, coloque (separados por vírgula):
-   `host.exp.Exponent,com.casadeadoracao.app`
-   - `host.exp.Exponent` é o Expo Go: dá para testar já, sem conta paga.
-   - `com.casadeadoracao.app` é o app de verdade. Para publicá-lo no iPhone é
-     preciso a conta **Apple Developer** (US$ 99/ano); o EAS liga a permissão
-     "Sign in with Apple" sozinho no primeiro build de iOS.
-3. Deixe *Secret Key* em branco: o app usa o login nativo do iPhone, que não
-   precisa dela.
-
-A Apple só manda o nome da pessoa **no primeiro login**; o app grava na hora.
-O e-mail pode vir escondido (`...@privaterelay.appleid.com`) se a pessoa
-escolher "Ocultar meu e-mail": é normal e funciona.
-
-> Apple no Android exigiria um *Services ID* e uma chave da conta paga. Como
-> quase ninguém tem conta Apple no Android, o botão aparece só no iPhone. A
-> regra da App Store (4.8) só exige a Apple no iOS quando há Google.
+O código que fazia isso está no histórico do git (`src/services/socialAuth.ts`,
+criado no commit `fa37ed1`; última versão no `22edf88`), caso um dia volte.
 
 ### Nome e foto da conta
 
-Nome e foto escolhidos no app ficam em `display_name` e `photo_url` em
-`user_metadata`. O Supabase regrava `name`/`avatar_url` com os dados do Google
-a cada login; por isso o app não usa esses campos para o que a pessoa escolheu
-(só como reserva, para contas antigas e a foto do Google).
+Contas criadas desde a versão 1.1 guardam nome e foto em `display_name` e
+`photo_url` (em `user_metadata`). As anteriores usam `name` e `avatar_url`; o
+app lê os dois (`src/utils/account.ts`).
 
 ## Fotos de perfil (Storage)
 
@@ -326,10 +265,11 @@ existem no painel:
   digits**. O app já exige o mesmo; o painel garante para quem chamar a API
   direto.
 - **Authentication › Rate Limits**: os padrões servem. Não aumente.
-- **Authentication › URL Configuration**: só `casadeadoracao://**` fixo (ver
-  "Endereços de retorno").
-- **Google Auth Platform › Público-alvo**: *Publicar app* (escopos básicos não
-  pedem verificação).
+- **Authentication › Sign In / Providers**: deixe só **Email** ligado
+  (Google e Apple desligados).
+- **Project Settings › General**: o plano gratuito **pausa o projeto depois de
+  7 dias sem uso** (aconteceu em outubro/2026: o app inteiro fica fora do ar até
+  clicar em *Restore project*). Evite com um ping semanal ou com o plano Pro.
 - **Database › Advisors › Security Advisor**: rode depois do `db push`; deve
   ficar sem alertas vermelhos.
 

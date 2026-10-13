@@ -9,10 +9,7 @@ import {
   removeAvatar,
   uploadAvatar,
 } from '../services/avatarService';
-import { signInWithApple, signInWithGoogle } from '../services/socialAuth';
 import { PASSWORD_RULE, nameFromMetadata, photoFromMetadata } from '../utils/account';
-
-export type SocialProvider = 'google' | 'apple';
 
 interface AuthValue {
   session: Session | null;
@@ -21,10 +18,6 @@ interface AuthValue {
   displayName: string;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  /** Google ou Apple. Lança AuthCanceledError se a pessoa desistir. */
-  signInWithProvider: (provider: SocialProvider) => Promise<void>;
-  /** Por onde a conta entra: 'email', 'google', 'apple'. */
-  providers: string[];
   /** Cria a conta; o Supabase envia um código de 6 dígitos para o e-mail. */
   signUp: (name: string, email: string, password: string) => Promise<{ needsCode: boolean }>;
   confirmSignUp: (email: string, code: string) => Promise<void>;
@@ -61,12 +54,6 @@ async function clearPersonalData() {
   await AsyncStorage.multiRemove(PERSONAL_KEYS).catch(() => {});
 }
 
-/** Conta criada agora há pouco: abre as boas-vindas em vez da Início. */
-function isFreshAccount(user: User | undefined): boolean {
-  if (!user?.created_at) return false;
-  return Date.now() - new Date(user.created_at).getTime() < 2 * 60 * 1000;
-}
-
 /** Mensagens do Supabase (em inglês) traduzidas para o usuário. */
 export function authErrorMessage(error: unknown): string {
   const msg = String((error as { message?: string })?.message ?? error ?? '').toLowerCase();
@@ -77,8 +64,6 @@ export function authErrorMessage(error: unknown): string {
     return 'O armazenamento de fotos ainda não foi configurado.';
   if (msg.includes('payload too large') || msg.includes('exceeded the maximum'))
     return 'A foto é grande demais.';
-  if (msg.includes('provider is not enabled') || msg.includes('unsupported provider'))
-    return 'Essa forma de entrar ainda não foi ativada. Use o e-mail.';
   if (msg.includes('invalid login')) return 'E-mail ou senha incorretos.';
   if (msg.includes('email not confirmed')) return 'Confirme seu e-mail com o código que enviamos.';
   if (msg.includes('already registered') || msg.includes('already been registered'))
@@ -111,12 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .getSession()
       .then(({ data }) => setSession(data.session))
       .finally(() => setLoading(false));
-    const { data } = supabase.auth.onAuthStateChange((event, s) => {
-      // Google/Apple criam a conta no primeiro login: junto com a sessão, para
-      // não piscar a Início antes das boas-vindas.
-      if (event === 'SIGNED_IN' && isFreshAccount(s?.user)) setIsNewAccount(true);
-      setSession(s);
-    });
+    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -129,20 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: session?.user ?? null,
     displayName: nameFromMetadata(session?.user?.user_metadata),
     loading,
-    providers: (session?.user?.app_metadata?.providers as string[] | undefined) ?? [],
 
     signIn: async (email, password) => {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       throwIf(error);
-    },
-
-    signInWithProvider: async (provider) => {
-      if (provider === 'google') return signInWithGoogle();
-      const appleName = await signInWithApple();
-      const { data } = await supabase.auth.getUser();
-      if (appleName && !nameFromMetadata(data.user?.user_metadata)) {
-        await supabase.auth.updateUser({ data: { display_name: appleName } });
-      }
     },
 
     signUp: async (name, email, password) => {

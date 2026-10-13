@@ -3,14 +3,12 @@
     "name": "Casa de Adoração",
     "slug": "igreja-app",
     "version": "1.2.0",
-    "scheme": "casadeadoracao",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.casadeadoracao.app",
-      "usesAppleSignIn": true,
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -42,7 +40,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-apple-authentication",
       [
         "expo-audio",
         {
@@ -83,7 +80,6 @@
           "backgroundColor": "#E2E2E2"
         }
       ],
-      "expo-web-browser",
       "expo-secure-store"
     ],
     "extra": {
