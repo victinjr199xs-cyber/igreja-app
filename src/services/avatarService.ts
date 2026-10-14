@@ -57,7 +57,7 @@ export async function uploadAvatar(userId: string, localUri: string): Promise<st
   // O arquivo tem sempre o mesmo nome: o ?v= força o app a baixar a foto nova
   // em vez de mostrar a antiga do cache.
   const url = `${data.publicUrl}?v=${Date.now()}`;
-  // photo_url, não avatar_url: o login do Google regrava avatar_url (AuthContext).
+  // photo_url é o campo atual; avatar_url é o das contas antigas (utils/account.ts).
   const { error: updateError } = await supabase.auth.updateUser({ data: { photo_url: url } });
   if (updateError) throw updateError;
   return url;
