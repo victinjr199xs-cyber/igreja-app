@@ -34,7 +34,11 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_KEY:-}" ]; then
+          # Tira espaços e quebras de linha que um segredo colado pode trazer
+          # (uma quebra no fim do endereço faz o curl recusá-lo: código 3).
+          SUPABASE_URL=$(printf '%s' "${SUPABASE_URL:-}" | tr -d '[:space:]')
+          SUPABASE_KEY=$(printf '%s' "${SUPABASE_KEY:-}" | tr -d '[:space:]')
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
             echo "Faltam os segredos SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY."
             exit 1
           fi
