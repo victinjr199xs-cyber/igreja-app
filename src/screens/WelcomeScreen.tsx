@@ -22,13 +22,20 @@ export default function WelcomeScreen() {
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.spring(enter, { toValue: 1, friction: 7, tension: 40, useNativeDriver: true }).start();
-    Animated.loop(
+    const entrance = Animated.spring(enter, { toValue: 1, friction: 7, tension: 40, useNativeDriver: true });
+    const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
         Animated.timing(pulse, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ])
-    ).start();
+    );
+    entrance.start();
+    pulseLoop.start();
+    // Ao tocar em "Começar" esta tela sai: o pulso em loop não pode continuar.
+    return () => {
+      entrance.stop();
+      pulseLoop.stop();
+    };
   }, []);
 
   return (

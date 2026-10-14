@@ -83,12 +83,17 @@ function VerseRotator() {
   const fade = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const id = setInterval(() => {
-      Animated.timing(fade, { toValue: 0, duration: 400, useNativeDriver: true }).start(() => {
+      Animated.timing(fade, { toValue: 0, duration: 400, useNativeDriver: true }).start(({ finished }) => {
+        // Tela saindo no meio do fade: não troca o texto de uma tela que já foi.
+        if (!finished) return;
         setIndex((i) => (i + 1) % VERSES.length);
         Animated.timing(fade, { toValue: 1, duration: 500, useNativeDriver: true }).start();
       });
     }, 5000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      fade.stopAnimation();
+    };
   }, []);
   const v = VERSES[index];
   return (
@@ -175,16 +180,23 @@ export default function AuthScreen({ onSkip }: { onSkip?: () => void }) {
   const tab = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.sequence([
+    const entrance = Animated.sequence([
       Animated.timing(intro, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       Animated.spring(sheet, { toValue: 1, friction: 8, tension: 45, useNativeDriver: true }),
-    ]).start();
-    Animated.loop(
+    ]);
+    const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(glow, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
         Animated.timing(glow, { toValue: 0, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ])
-    ).start();
+    );
+    entrance.start();
+    glowLoop.start();
+    // Depois do login esta tela sai: o brilho em loop não pode seguir rodando.
+    return () => {
+      entrance.stop();
+      glowLoop.stop();
+    };
   }, []);
 
   useEffect(() => {

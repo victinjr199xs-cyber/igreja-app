@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
@@ -20,10 +20,18 @@ export default function GiveScreen() {
     []
   );
 
+  // O "Copiado" some sozinho; o relógio é cancelado se a pessoa sair da tela
+  // ou copiar de novo antes de acabar (senão o primeiro apagaria o segundo).
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+  }, []);
+
   const copy = async (what: 'key' | 'code') => {
     await Clipboard.setStringAsync(what === 'key' ? CHURCH_INFO.pix.key : payload);
     setCopied(what);
-    setTimeout(() => setCopied(null), 2500);
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => setCopied(null), 2500);
   };
 
   return (
