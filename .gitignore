@@ -44,3 +44,6 @@ yarn-error.*
 
 # Supabase CLI (estado local: projeto ligado, versão)
 supabase/.temp/
+
+# Skills de terceiros (texto de outros autores; origem em .claude/SKILLS-SOURCES.md)
+.claude/skills/
