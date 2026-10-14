@@ -1,0 +1,54 @@
+# Mantém o projeto Supabase da igreja ativo.
+#
+# O plano gratuito pausa o projeto depois de 7 dias sem atividade, e com ele
+# pausado o app inteiro fica fora do ar (login, vídeos, avaliações, fotos).
+# Esta rotina chama a função public.ping() (supabase/migrations/..._ping.sql)
+# a cada 3 dias. Se o projeto não responder, a rotina FALHA e o GitHub avisa
+# por e-mail: é o alerta de que ele pausou.
+#
+# Segredos do repositório (Settings › Secrets and variables › Actions):
+#   SUPABASE_URL              https://<ref>.supabase.co
+#   SUPABASE_PUBLISHABLE_KEY  a chave pública (a mesma que vai dentro do app)
+#
+# Atenção: o GitHub desliga rotinas agendadas de repositórios sem nenhuma
+# atividade por 60 dias. Enquanto o app recebe commits, isso não acontece.
+
+name: Manter o Supabase ativo
+
+on:
+  schedule:
+    - cron: '17 9 */3 * *' # dias 1, 4, 7... às 09:17 UTC (06:17 em Brasília)
+  workflow_dispatch: {} # também dá para rodar à mão na aba Actions
+
+# Esta rotina não precisa de nenhuma permissão sobre o repositório.
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Chamar ping() no banco
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_KEY:-}" ]; then
+            echo "Faltam os segredos SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY."
+            exit 1
+          fi
+          code=$(curl -sS -o body.json -w '%{http_code}' \
+            --max-time 30 --retry 3 --retry-delay 10 --retry-all-errors \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/ping" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H 'Content-Type: application/json' \
+            -d '{}')
+          echo "HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "O projeto não respondeu como esperado (pausado? função ping() ausente?)."
+            cat body.json
+            exit 1
+          fi
+          echo "Banco respondeu: $(cat body.json)"

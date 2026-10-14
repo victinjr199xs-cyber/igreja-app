@@ -267,9 +267,28 @@ existem no painel:
 - **Authentication › Rate Limits**: os padrões servem. Não aumente.
 - **Authentication › Sign In / Providers**: deixe só **Email** ligado
   (Google e Apple desligados).
-- **Project Settings › General**: o plano gratuito **pausa o projeto depois de
-  7 dias sem uso** (aconteceu em outubro/2026: o app inteiro fica fora do ar até
-  clicar em *Restore project*). Evite com um ping semanal ou com o plano Pro.
+- **Pausa por inatividade**: o plano gratuito **pausa o projeto depois de 7
+  dias sem uso** (aconteceu em outubro/2026: o app inteiro ficou fora do ar até
+  clicar em *Restore project*). Como evitamos: veja "Ping automático" abaixo.
+  A garantia de verdade é o plano Pro (US$ 25/mês).
+
+## Ping automático (projeto sempre ativo)
+
+A rotina `.github/workflows/supabase-ping.yml` chama a função `public.ping()`
+(migração `20261014000006_ping.sql`, só devolve a hora do servidor) a cada 3
+dias, às 06:17 de Brasília. Roda no GitHub: não depende do seu computador.
+
+- **Se o projeto pausar**, a rotina falha e o GitHub manda e-mail para quem
+  editou o arquivo por último. Esse e-mail é o alerta: abra o painel e clique em
+  *Restore project*.
+- **Rodar à mão** (para testar): GitHub › aba *Actions* › "Manter o Supabase
+  ativo" › *Run workflow*.
+- **Segredos** (Settings › Secrets and variables › Actions): `SUPABASE_URL` e
+  `SUPABASE_PUBLISHABLE_KEY`. É a chave pública, a mesma que vai dentro do app.
+- **Limites**: o Supabase não promete que o ping vale para sempre (a regra é
+  deles); e o GitHub desliga rotinas agendadas de repositório **sem nenhuma
+  atividade por 60 dias** (com commits regulares isso não acontece). Com
+  membros usando o app, nada disso importa.
 - **Database › Advisors › Security Advisor**: rode depois do `db push`; deve
   ficar sem alertas vermelhos.
 
