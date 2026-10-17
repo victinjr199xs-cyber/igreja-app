@@ -96,7 +96,8 @@ export async function scheduleNotifications(prefs: NotificationPrefs): Promise<v
         content: {
           title: '✝️ Versículo do Dia',
           body: `${verse.text} — ${verse.reference}`,
-          data: { verse: verse.reference },
+          // slug/chapter: o toque abre o capítulo (navigation/notificationRoute.ts).
+          data: { type: 'daily-verse', verse: verse.reference, slug: verse.slug, chapter: verse.chapter },
           sound: true,
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },

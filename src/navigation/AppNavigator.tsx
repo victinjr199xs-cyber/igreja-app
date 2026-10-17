@@ -1,5 +1,13 @@
-import React from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+  ParamListBase,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
+import { targetForNotification } from './notificationRoute';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +26,24 @@ import GiveScreen, { GIVING_ENABLED } from '../screens/GiveScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+
+// Navegar de fora das telas (toque numa notificação).
+const navigationRef = createNavigationContainerRef<ParamListBase>();
+
+/** Abre a aba certa para o toque numa notificação (só o toque simples). */
+function openFromNotification(response: Notifications.NotificationResponse | null) {
+  if (!response || response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+  const target = targetForNotification(response.notification.request.content.data);
+  if (!target || !navigationRef.isReady()) return;
+  // 'Abas' fecha o que estiver por cima (Configurações, Perfil...) e vai à aba.
+  navigationRef.navigate('Abas', {
+    screen: target.tab,
+    params: 'params' in target ? target.params : undefined,
+  });
+}
+
+/** Esquece o toque já tratado, para não reabrir a mesma tela no próximo login. */
+const forgetLastTap = () => Notifications.clearLastNotificationResponseAsync().catch(() => {});
 
 const getIconName = (routeName: string, focused: boolean): keyof typeof Ionicons.glyphMap => {
   switch (routeName) {
@@ -94,8 +120,27 @@ export default function AppNavigator() {
     headerBackTitle: 'Voltar',
   };
 
+  // Toque com o app aberto (ou em segundo plano).
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      openFromNotification(response);
+      forgetLastTap();
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Toque que abriu o app fechado: a navegação só aceita ordens depois de pronta.
+  const handleColdStartTap = () => {
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        openFromNotification(response);
+        if (response) forgetLastTap();
+      })
+      .catch(() => {});
+  };
+
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={handleColdStartTap}>
       <Stack.Navigator>
         <Stack.Screen name="Abas" component={Tabs} options={{ headerShown: false }} />
         <Stack.Screen name="Configurações" component={SettingsScreen} options={stackOptions} />
